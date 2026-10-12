@@ -1,0 +1,30 @@
+@import "bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
+:root {
+    --brand: #ff9900;
+    --brand-dark: #e58900;
+    --secondary: #585858;
+    --background: #f5f6f7;
+    --text: #2e2e2e;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--background);
+    color: var(--text);
+    font-family: Arial, sans-serif;
+}
+
+.btn-brand {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: white;
+}
+
+.btn-brand:hover {
+    background: var(--brand-dark);
+    border-color: var(--brand-dark);
+    color: white;
+}
