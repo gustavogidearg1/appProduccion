@@ -60,7 +60,42 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+
         ],
+
+        'club_comofra' => [
+    'driver' => 'mysql',
+    'url' => env('DB_CLUB_URL'),
+    'host' => env('DB_CLUB_HOST', '127.0.0.1'),
+    'port' => env('DB_CLUB_PORT', '3306'),
+    'database' => env('DB_CLUB_DATABASE', 'forge'),
+    'username' => env('DB_CLUB_USERNAME', 'forge'),
+    'password' => env('DB_CLUB_PASSWORD', ''),
+    'unix_socket' => env('DB_CLUB_SOCKET', ''),
+    'charset' => 'utf8mb4',
+    'collation' => 'utf8mb4_unicode_ci',
+    'prefix' => '',
+    'prefix_indexes' => true,
+    'strict' => true,
+    'engine' => null,
+],
+
+'cotizador' => [
+    'driver' => 'mysql',
+    'url' => env('DB_COTIZADOR_URL'),
+    'host' => env('DB_COTIZADOR_HOST', '127.0.0.1'),
+    'port' => env('DB_COTIZADOR_PORT', '3306'),
+    'database' => env('DB_COTIZADOR_DATABASE', 'forge'),
+    'username' => env('DB_COTIZADOR_USERNAME', 'forge'),
+    'password' => env('DB_COTIZADOR_PASSWORD', ''),
+    'unix_socket' => env('DB_COTIZADOR_SOCKET', ''),
+    'charset' => 'utf8mb4',
+    'collation' => 'utf8mb4_unicode_ci',
+    'prefix' => '',
+    'prefix_indexes' => true,
+    'strict' => true,
+    'engine' => null,
+],
 
         'mariadb' => [
             'driver' => 'mariadb',

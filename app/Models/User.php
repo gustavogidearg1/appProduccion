@@ -12,6 +12,8 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasRoles;
 
+    protected $connection = 'club_comofra';
+
     protected $table = 'users';
 
     protected $fillable = [

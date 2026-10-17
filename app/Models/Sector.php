@@ -12,6 +12,8 @@ class Sector extends Model
 
     protected $table = 'sectors';
 
+    protected $connection = 'club_comofra';
+
     protected $fillable = [
         'company_id',
         'name',
