@@ -1,47 +1,118 @@
-<x-guest-layout>
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <form method="POST" action="{{ route('login') }}">
-        @csrf
+    <title>App Producción</title>
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
+<body class="bg-light">
+    <main class="min-vh-100 d-flex align-items-center justify-content-center p-3">
+        <div class="card border-0 shadow" style="width: 100%; max-width: 430px;">
 
-            <x-text-input id="password" class="block mt-1 w-full"
+            <div class="text-center text-white p-4"
+                 style="background: linear-gradient(135deg, #ff9900, #e58900);">
+
+                <div class="bg-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                     style="width: 75px; height: 75px;">
+                    <i class="bi bi-gear-wide-connected text-warning"
+                       style="font-size: 42px;"></i>
+                </div>
+
+                <h2 class="fw-bold mb-1">App Producción</h2>
+                <p class="mb-0">Gestión de producción</p>
+            </div>
+
+            <div class="card-body p-4">
+                <h4 class="text-center fw-bold mb-4">Ingresar</h4>
+
+                @if (session('status'))
+                    <div class="alert alert-success">
+                        {{ session('status') }}
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('login') }}">
+                    @csrf
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">
+                            Correo electrónico
+                        </label>
+
+                        <input
+                            id="email"
+                            type="email"
+                            name="email"
+                            value="{{ old('email') }}"
+                            class="form-control @error('email') is-invalid @enderror"
+                            required
+                            autofocus
+                        >
+
+                        @error('email')
+                            <div class="invalid-feedback">
+                                {{ $message }}
+                            </div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            Contraseña
+                        </label>
+
+                        <input
+                            id="password"
                             type="password"
                             name="password"
-                            required autocomplete="current-password" />
+                            class="form-control @error('password') is-invalid @enderror"
+                            required
+                        >
 
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
+                        @error('password')
+                            <div class="invalid-feedback">
+                                {{ $message }}
+                            </div>
+                        @enderror
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input
+                            id="remember_me"
+                            type="checkbox"
+                            name="remember"
+                            class="form-check-input"
+                        >
+
+                        <label for="remember_me" class="form-check-label">
+                            Recordarme
+                        </label>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        @if (Route::has('password.request'))
+                            <a href="{{ route('password.request') }}"
+                               class="text-warning">
+                                ¿Olvidaste tu contraseña?
+                            </a>
+                        @endif
+
+                        <button type="submit" class="btn btn-warning px-4">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            Ingresar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card-footer text-center text-muted">
+                App Producción
+            </div>
         </div>
-
-        <!-- Remember Me -->
-        <div class="block mt-4">
-            <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="remember">
-                <span class="ms-2 text-sm text-gray-600">{{ __('Remember me') }}</span>
-            </label>
-        </div>
-
-        <div class="flex items-center justify-end mt-4">
-            @if (Route::has('password.request'))
-                <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('password.request') }}">
-                    {{ __('Forgot your password?') }}
-                </a>
-            @endif
-
-            <x-primary-button class="ms-3">
-                {{ __('Log in') }}
-            </x-primary-button>
-        </div>
-    </form>
-</x-guest-layout>
+    </main>
+</body>
+</html>
