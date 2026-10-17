@@ -1,36 +1,103 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+    <title>
+        @yield('title', 'App Producción')
+    </title>
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
 
-        <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gray-100">
-            @include('layouts.navigation')
+<body class="bg-light">
 
-            <!-- Page Heading -->
-            @isset($header)
-                <header class="bg-white shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        {{ $header }}
-                    </div>
-                </header>
-            @endisset
+    <nav class="navbar navbar-dark shadow-sm"
+         style="background: linear-gradient(135deg, #585858, #f28c00);">
+        <div class="container-fluid px-4">
 
-            <!-- Page Content -->
-            <main>
-                {{ $slot }}
-            </main>
+            <a href="{{ route('dashboard') }}"
+               class="navbar-brand fw-bold">
+                <i class="bi bi-gear-wide-connected me-2"></i>
+                App Producción
+            </a>
+
+            @auth
+                <div class="d-flex align-items-center gap-3 text-white">
+                    <span>
+                        <i class="bi bi-person-circle me-1"></i>
+                        {{ Auth::user()->name }}
+                    </span>
+
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-light">
+                            <i class="bi bi-box-arrow-right me-1"></i>
+                            Salir
+                        </button>
+                    </form>
+                </div>
+            @endauth
+
         </div>
-    </body>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+
+            <aside class="col-md-3 col-lg-2 bg-dark text-white min-vh-100 p-3">
+
+                <h6 class="text-uppercase text-warning mb-3">
+                    Menú principal
+                </h6>
+
+                <nav class="nav flex-column gap-2">
+
+                    <a href="{{ route('dashboard') }}"
+                       class="nav-link text-white rounded
+                       {{ request()->routeIs('dashboard') ? 'bg-warning' : '' }}">
+                        <i class="bi bi-speedometer2 me-2"></i>
+                        Tablero
+                    </a>
+
+                    <a href="#" class="nav-link text-white">
+                        <i class="bi bi-calendar3 me-2"></i>
+                        Planificación
+                    </a>
+
+                    <a href="#" class="nav-link text-white">
+                        <i class="bi bi-kanban me-2"></i>
+                        Producción
+                    </a>
+
+                    <a href="#" class="nav-link text-white">
+                        <i class="bi bi-box-seam me-2"></i>
+                        Chasis
+                    </a>
+
+                    <a href="#" class="nav-link text-white">
+                        <i class="bi bi-check2-square me-2"></i>
+                        Calidad
+                    </a>
+
+                    <a href="#" class="nav-link text-white">
+                        <i class="bi bi-bar-chart-line me-2"></i>
+                        Reportes
+                    </a>
+
+                </nav>
+            </aside>
+
+            <main class="col-md-9 col-lg-10 p-4">
+                @yield('content')
+            </main>
+
+        </div>
+    </div>
+
+</body>
 </html>
