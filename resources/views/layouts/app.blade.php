@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,12 +15,10 @@
 
 <body class="bg-light">
 
-    <nav class="navbar navbar-dark shadow-sm"
-         style="background: linear-gradient(135deg, #585858, #f28c00);">
+    <nav class="navbar navbar-dark shadow-sm" style="background: linear-gradient(135deg, #585858, #f28c00);">
         <div class="container-fluid px-4">
 
-            <a href="{{ route('dashboard') }}"
-               class="navbar-brand fw-bold">
+            <a href="{{ route('dashboard') }}" class="navbar-brand fw-bold">
                 <i class="bi bi-gear-wide-connected me-2"></i>
                 App Producción
             </a>
@@ -34,8 +33,7 @@
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
 
-                        <button type="submit"
-                                class="btn btn-sm btn-outline-light">
+                        <button type="submit" class="btn btn-sm btn-outline-light">
                             <i class="bi bi-box-arrow-right me-1"></i>
                             Salir
                         </button>
@@ -58,7 +56,7 @@
                 <nav class="nav flex-column gap-2">
 
                     <a href="{{ route('dashboard') }}"
-                       class="nav-link text-white rounded
+                        class="nav-link text-white rounded
                        {{ request()->routeIs('dashboard') ? 'bg-warning' : '' }}">
                         <i class="bi bi-speedometer2 me-2"></i>
                         Tablero
@@ -72,6 +70,13 @@
                     <a href="#" class="nav-link text-white">
                         <i class="bi bi-kanban me-2"></i>
                         Producción
+                    </a>
+
+                    <a href="{{ route('productos.index') }}"
+                        class="nav-link rounded
+   {{ request()->routeIs('productos.*') ? 'bg-warning text-dark' : 'text-white' }}">
+                        <i class="bi bi-boxes me-2"></i>
+                        Productos
                     </a>
 
                     <a href="#" class="nav-link text-white">
@@ -100,4 +105,5 @@
     </div>
 
 </body>
+
 </html>

@@ -14,22 +14,6 @@ class Producto extends Model
 
     protected $table = 'productos';
 
-    protected $fillable = [
-        'codigo',
-        'nombre',
-        'um_id',
-        'detalle',
-        'img',
-        'img_1',
-        'img_2',
-        'img_3',
-        'links',
-        'familia_id',
-        'activo',
-        'tipo_id',
-        'user_id',
-    ];
-
     protected $casts = [
         'codigo' => 'integer',
         'activo' => 'boolean',
@@ -37,6 +21,7 @@ class Producto extends Model
         'um_id' => 'integer',
         'tipo_id' => 'integer',
         'user_id' => 'integer',
+        'ue_produccion' => 'decimal:2',
     ];
 
     public function familia(): BelongsTo
