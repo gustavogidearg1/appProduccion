@@ -72,11 +72,27 @@
                         Producción
                     </a>
 
+
+
                     <a href="{{ route('productos.index') }}"
                         class="nav-link rounded
    {{ request()->routeIs('productos.*') ? 'bg-warning text-dark' : 'text-white' }}">
                         <i class="bi bi-boxes me-2"></i>
                         Productos
+                    </a>
+
+                                        <a href="{{ route('clientes.index') }}"
+                        class="nav-link rounded
+   {{ request()->routeIs('clientes.*') ? 'bg-warning text-dark' : 'text-white' }}">
+                        <i class="bi bi-people me-2"></i>
+                        Clientes
+                    </a>
+
+                                                            <a href="{{ route('planes.index') }}"
+                        class="nav-link rounded
+   {{ request()->routeIs('planes.*') ? 'bg-warning text-dark' : 'text-white' }}">
+                        <i class="bi bi-people me-2"></i>
+                        Planes de producción
                     </a>
 
                     <a href="#" class="nav-link text-white">
