@@ -5,9 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\PlanProduccion;
 use App\Models\PlanProducto;
 use App\Models\Producto;
+use App\Models\ProductoComponente;
+use App\Models\UnidadProduccion;
+use App\Models\UnidadComponente;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class PlanProduccionController extends Controller
 {
@@ -37,7 +42,10 @@ class PlanProduccionController extends Controller
 
     public function show(PlanProduccion $plan)
     {
-        $plan->load('planProductos.producto');
+        $plan->load([
+            'planProductos.producto',
+            'planProductos.unidadesProduccion',
+        ]);
 
         return view('produccion.planes.show', compact('plan'));
     }
@@ -108,11 +116,11 @@ class PlanProduccionController extends Controller
             ->whereIn('id', $datos['producto_id'])
             ->where('activo', true)
             ->pluck('id')
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->all();
 
         $productosSolicitados = array_map(
-            fn($id) => (int) $id,
+            fn ($id) => (int) $id,
             $datos['producto_id']
         );
 
@@ -141,8 +149,6 @@ class PlanProduccionController extends Controller
             }
         });
 
-
-
         return redirect()
             ->route('planes.index')
             ->with(
@@ -150,4 +156,160 @@ class PlanProduccionController extends Controller
                 'Plan de producción creado correctamente.'
             );
     }
+
+    public function unidades(
+    PlanProduccion $plan,
+    PlanProducto $planProducto
+) {
+    if ($planProducto->plan_produccion_id !== $plan->id) {
+        abort(404);
+    }
+
+    $planProducto->load([
+        'producto',
+        'unidadesProduccion.cliente',
+    ]);
+
+    return view(
+        'produccion.planes.unidades',
+        compact('plan', 'planProducto')
+    );
+}
+
+public function editUnidad(
+    PlanProduccion $plan,
+    PlanProducto $planProducto,
+    UnidadProduccion $unidad
+) {
+    if (
+        $planProducto->plan_produccion_id !== $plan->id ||
+        $unidad->plan_producto_id !== $planProducto->id
+    ) {
+        abort(404);
+    }
+
+    $colores = DB::connection('cotizador')
+        ->table('colores')
+        ->orderBy('nombre')
+        ->get([
+            'id',
+            'nombre',
+            'descripcion',
+        ]);
+
+    return view(
+        'produccion.planes.unidad-edit',
+        compact(
+            'plan',
+            'planProducto',
+            'unidad',
+            'colores'
+        )
+    );
+}
+
+
+public function updateUnidad(
+    Request $request,
+    PlanProduccion $plan,
+    PlanProducto $planProducto,
+    UnidadProduccion $unidad
+) {
+    if (
+        $planProducto->plan_produccion_id !== $plan->id ||
+        $unidad->plan_producto_id !== $planProducto->id
+    ) {
+        abort(404);
+    }
+
+    $datos = $request->validate([
+    'chasis' => [
+        'nullable',
+        'string',
+        'max:100',
+        Rule::unique('unidades_produccion', 'chasis')
+            ->ignore($unidad->id),
+    ],
+
+    'estado' => [
+        'required',
+        'string',
+        'in:planificada,en_produccion,terminada,entregada,cancelada',
+    ],
+
+    'color' => [
+        'nullable',
+        'string',
+        'max:100',
+    ],
+
+    'observaciones' => [
+        'nullable',
+        'string',
+    ],
+]);
+
+    $unidad->update($datos);
+
+    return redirect()
+        ->route('planes.productos.unidades', [$plan, $planProducto])
+        ->with('success', 'Unidad actualizada correctamente.');
+}
+
+    public function generarUnidades(
+    PlanProduccion $plan,
+    PlanProducto $planProducto
+) {
+    if ($planProducto->plan_produccion_id !== $plan->id) {
+        abort(404);
+    }
+
+    $cantidad = (float) $planProducto->cantidad;
+
+    if ($cantidad <= 0 || floor($cantidad) !== $cantidad) {
+        return back()->with(
+            'error',
+            'La cantidad debe ser un número entero para generar unidades.'
+        );
+    }
+
+    $componentesEstandar = ProductoComponente::query()
+        ->where('producto_id', $planProducto->producto_id)
+        ->where('activo', true)
+        ->get();
+
+    $existentes = $planProducto
+        ->unidadesProduccion()
+        ->count();
+
+    for (
+        $numero = $existentes + 1;
+        $numero <= (int) $cantidad;
+        $numero++
+    ) {
+        $unidad = UnidadProduccion::create([
+            'plan_producto_id' => $planProducto->id,
+            'numero_unidad' => $numero,
+            'estado' => 'planificada',
+        ]);
+
+        foreach ($componentesEstandar as $componenteEstandar) {
+            UnidadComponente::create([
+                'unidad_produccion_id' => $unidad->id,
+                'producto_id' => $componenteEstandar->componente_producto_id,
+                'cantidad' => $componenteEstandar->cantidad,
+                'estado' => 'pendiente',
+                'uso' => $componenteEstandar->uso,
+                'observaciones' => $componenteEstandar->observaciones,
+                'user_id' => auth()->id(),
+            ]);
+        }
+    }
+
+    return back()->with(
+        'success',
+        'Unidades y componentes estándar generados correctamente.'
+    );
+}
+
 }

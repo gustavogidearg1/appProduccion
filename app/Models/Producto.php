@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
 
 class Producto extends Model
 {
@@ -32,4 +34,21 @@ class Producto extends Model
             'id'
         );
     }
+
+    public function componentesEstandar(): HasMany
+{
+    return $this->hasMany(
+        ProductoComponente::class,
+        'producto_id'
+    );
+}
+
+public function tipo(): BelongsTo
+{
+    return $this->belongsTo(
+        Tipo::class,
+        'tipo_id'
+    );
+}
+
 }

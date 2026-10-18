@@ -11,7 +11,7 @@ class ProductoController extends Controller
     {
         $search = $request->input('search');
 
-        $productos = Producto::with('familia')
+        $productos = Producto::with('familia', 'tipo')
             ->where('activo', true)
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {

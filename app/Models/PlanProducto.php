@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PlanProducto extends Model
 {
@@ -25,19 +26,29 @@ class PlanProducto extends Model
         'cantidad' => 'decimal:2',
     ];
 
-    public function plan(): BelongsTo
-    {
-        return $this->belongsTo(
-            PlanProduccion::class,
-            'plan_produccion_id'
-        );
-    }
-
-    public function producto(): BelongsTo
-    {
-        return $this->belongsTo(
-            Producto::class,
-            'producto_id'
-        );
-    }
+public function plan(): BelongsTo
+{
+    return $this->belongsTo(
+        PlanProduccion::class,
+        'plan_produccion_id'
+    );
 }
+
+public function producto(): BelongsTo
+{
+    return $this->belongsTo(
+        Producto::class,
+        'producto_id'
+    );
+}
+
+public function unidadesProduccion(): HasMany
+{
+    return $this->hasMany(
+        UnidadProduccion::class,
+        'plan_producto_id'
+    );
+}
+
+}
+
