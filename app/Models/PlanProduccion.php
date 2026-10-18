@@ -33,4 +33,14 @@ class PlanProduccion extends Model
         'plan_produccion_id'
     );
 }
+
+public function avances(): HasMany
+{
+    return $this->hasMany(
+        AvanceProduccion::class,
+        'plan_produccion_id'
+    );
+}
+
+
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\PlanProduccionController;
 use App\Http\Controllers\UnidadComponenteController;
 use App\Http\Controllers\ProductoComponenteController;
+use App\Http\Controllers\AvanceProduccionController;
 
 
 use Illuminate\Support\Facades\Route;
@@ -75,36 +76,65 @@ Route::middleware('auth')->group(function () {
         [UnidadComponenteController::class, 'store']
     )->name('planes.productos.unidades.componentes.store');
 
-Route::get(
-    '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/componentes/{componente}/edit',
-    [UnidadComponenteController::class, 'edit']
-)->name('planes.productos.unidades.componentes.edit');
+    Route::get(
+        '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/componentes/{componente}/edit',
+        [UnidadComponenteController::class, 'edit']
+    )->name('planes.productos.unidades.componentes.edit');
 
-Route::put(
-    '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/componentes/{componente}',
-    [UnidadComponenteController::class, 'update']
-)->name('planes.productos.unidades.componentes.update');
+    Route::put(
+        '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/componentes/{componente}',
+        [UnidadComponenteController::class, 'update']
+    )->name('planes.productos.unidades.componentes.update');
 
-Route::get(
-    '/productos/{producto}/componentes',
-    [ProductoComponenteController::class, 'index']
-)->name('productos.componentes.index');
+    Route::get(
+        '/productos/{producto}/componentes',
+        [ProductoComponenteController::class, 'index']
+    )->name('productos.componentes.index');
 
-Route::get(
-    '/productos/{producto}/componentes/create',
-    [ProductoComponenteController::class, 'create']
-)->name('productos.componentes.create');
+    Route::get(
+        '/productos/{producto}/componentes/create',
+        [ProductoComponenteController::class, 'create']
+    )->name('productos.componentes.create');
 
-Route::post(
-    '/productos/{producto}/componentes',
-    [ProductoComponenteController::class, 'store']
-)->name('productos.componentes.store');
+    Route::post(
+        '/productos/{producto}/componentes',
+        [ProductoComponenteController::class, 'store']
+    )->name('productos.componentes.store');
 
-Route::delete(
-    '/productos/{producto}/componentes/{componente}',
-    [ProductoComponenteController::class, 'destroy']
-)->name('productos.componentes.destroy');
+    Route::delete(
+        '/productos/{producto}/componentes/{componente}',
+        [ProductoComponenteController::class, 'destroy']
+    )->name('productos.componentes.destroy');
 
+    Route::get(
+        '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/avances',
+        [AvanceProduccionController::class, 'unidad']
+    )->name('planes.productos.unidades.avances');
+
+    Route::post(
+        '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/avances/{etapa}/iniciar',
+        [AvanceProduccionController::class, 'iniciar']
+    )->name('planes.productos.unidades.avances.iniciar');
+
+    Route::post(
+        '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/avances/{etapa}/finalizar',
+        [AvanceProduccionController::class, 'finalizar']
+    )->name('planes.productos.unidades.avances.finalizar');
+
+    Route::get(
+        '/planes/{plan}/avances',
+        [AvanceProduccionController::class, 'plan']
+    )->name('planes.avances');
+
+    Route::post(
+        '/planes/{plan}/avances/{etapa}/iniciar',
+        [AvanceProduccionController::class, 'iniciarPlan']
+    )->name('planes.avances.iniciar');
+
+    Route::post(
+        '/planes/{plan}/avances/{etapa}/finalizar',
+        [AvanceProduccionController::class, 'finalizarPlan']
+    )->name('planes.avances.finalizar');
 });
 
 

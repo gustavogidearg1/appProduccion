@@ -79,6 +79,11 @@
                                             Componentes
                                         </a>
 
+                                        <a href="{{ route('planes.productos.unidades.avances', [$plan, $planProducto, $unidad]) }}"
+                                            class="btn btn-sm btn-success">
+                                            Avances
+                                        </a>
+
                                     </td>
 
                                 </tr>

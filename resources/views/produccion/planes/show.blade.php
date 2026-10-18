@@ -12,6 +12,14 @@
             <a href="{{ route('planes.index') }}" class="btn btn-outline-secondary">
                 Volver
             </a>
+
+            <a
+    href="{{ route('planes.avances', $plan) }}"
+    class="btn btn-success"
+>
+    Avances del plan
+</a>
+
         </div>
 
         <div class="card shadow-sm mb-4">

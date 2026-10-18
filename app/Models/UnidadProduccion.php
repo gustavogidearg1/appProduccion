@@ -53,4 +53,13 @@ class UnidadProduccion extends Model
         'unidad_produccion_id'
     );
 }
+
+public function avances(): HasMany
+{
+    return $this->hasMany(
+        AvanceProduccion::class,
+        'unidad_produccion_id'
+    );
+}
+
 }
