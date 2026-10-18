@@ -81,14 +81,14 @@
                         Productos
                     </a>
 
-                                        <a href="{{ route('clientes.index') }}"
+                    <a href="{{ route('clientes.index') }}"
                         class="nav-link rounded
    {{ request()->routeIs('clientes.*') ? 'bg-warning text-dark' : 'text-white' }}">
                         <i class="bi bi-people me-2"></i>
                         Clientes
                     </a>
 
-                                                            <a href="{{ route('planes.index') }}"
+                    <a href="{{ route('planes.index') }}"
                         class="nav-link rounded
    {{ request()->routeIs('planes.*') ? 'bg-warning text-dark' : 'text-white' }}">
                         <i class="bi bi-people me-2"></i>
