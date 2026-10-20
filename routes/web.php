@@ -7,7 +7,8 @@ use App\Http\Controllers\PlanProduccionController;
 use App\Http\Controllers\UnidadComponenteController;
 use App\Http\Controllers\ProductoComponenteController;
 use App\Http\Controllers\AvanceProduccionController;
-
+use App\Http\Controllers\UnidadControlCalidadController;
+use App\Http\Controllers\ProduccionMovilController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -135,6 +136,23 @@ Route::middleware('auth')->group(function () {
         '/planes/{plan}/avances/{etapa}/finalizar',
         [AvanceProduccionController::class, 'finalizarPlan']
     )->name('planes.avances.finalizar');
+
+    Route::get(
+    '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/calidad',
+    [UnidadControlCalidadController::class, 'index']
+)->name('planes.productos.unidades.calidad');
+
+Route::put(
+    '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/calidad',
+    [UnidadControlCalidadController::class, 'update']
+)->name('planes.productos.unidades.calidad.update');
+
+Route::get(
+    '/produccion/movil',
+    [ProduccionMovilController::class, 'index']
+)->name('produccion.movil');
+
+
 });
 
 

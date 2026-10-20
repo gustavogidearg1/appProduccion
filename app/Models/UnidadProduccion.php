@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+
 class UnidadProduccion extends Model
 {
     use HasFactory;
@@ -58,6 +59,14 @@ public function avances(): HasMany
 {
     return $this->hasMany(
         AvanceProduccion::class,
+        'unidad_produccion_id'
+    );
+}
+
+public function controlesCalidad(): HasMany
+{
+    return $this->hasMany(
+        UnidadControlCalidad::class,
         'unidad_produccion_id'
     );
 }

@@ -15,17 +15,33 @@
 
 <body class="bg-light">
 
-    <nav class="navbar navbar-dark shadow-sm" style="background: linear-gradient(135deg, #585858, #f28c00);">
-        <div class="container-fluid px-4">
+    <nav class="navbar navbar-dark shadow-sm"
+         style="background: linear-gradient(135deg, #585858, #f28c00);">
 
-            <a href="{{ route('dashboard') }}" class="navbar-brand fw-bold">
-                <i class="bi bi-gear-wide-connected me-2"></i>
-                App Producción
-            </a>
+        <div class="container-fluid px-3 px-md-4">
+
+            <div class="d-flex align-items-center">
+                <button
+                    class="btn btn-outline-light d-md-none me-2"
+                    type="button"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#menuMovil"
+                    aria-controls="menuMovil"
+                    aria-label="Abrir menú">
+                    <i class="bi bi-list fs-5"></i>
+                </button>
+
+                <a href="{{ route('dashboard') }}"
+                   class="navbar-brand fw-bold">
+                    <i class="bi bi-gear-wide-connected me-2"></i>
+                    <span>App Producción</span>
+                </a>
+            </div>
 
             @auth
-                <div class="d-flex align-items-center gap-3 text-white">
-                    <span>
+                <div class="d-flex align-items-center gap-2 gap-md-3 text-white">
+
+                    <span class="d-none d-sm-inline">
                         <i class="bi bi-person-circle me-1"></i>
                         {{ Auth::user()->name }}
                     </span>
@@ -33,87 +49,53 @@
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
 
-                        <button type="submit" class="btn btn-sm btn-outline-light">
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-light">
                             <i class="bi bi-box-arrow-right me-1"></i>
-                            Salir
+                            <span class="d-none d-sm-inline">Salir</span>
                         </button>
                     </form>
+
                 </div>
             @endauth
 
         </div>
     </nav>
 
+    {{-- Menú móvil --}}
+    <div class="offcanvas offcanvas-start bg-dark text-white"
+         tabindex="-1"
+         id="menuMovil"
+         aria-labelledby="menuMovilLabel">
+
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title text-warning"
+                id="menuMovilLabel">
+                Menú principal
+            </h5>
+
+            <button type="button"
+                    class="btn-close btn-close-white"
+                    data-bs-dismiss="offcanvas"
+                    aria-label="Cerrar">
+            </button>
+        </div>
+
+        <div class="offcanvas-body p-3">
+            @include('layouts.menu')
+        </div>
+    </div>
+
     <div class="container-fluid">
         <div class="row">
 
-            <aside class="col-md-3 col-lg-2 bg-dark text-white min-vh-100 p-3">
-
-                <h6 class="text-uppercase text-warning mb-3">
-                    Menú principal
-                </h6>
-
-                <nav class="nav flex-column gap-2">
-
-                    <a href="{{ route('dashboard') }}"
-                        class="nav-link text-white rounded
-                       {{ request()->routeIs('dashboard') ? 'bg-warning' : '' }}">
-                        <i class="bi bi-speedometer2 me-2"></i>
-                        Tablero
-                    </a>
-
-                    <a href="#" class="nav-link text-white">
-                        <i class="bi bi-calendar3 me-2"></i>
-                        Planificación
-                    </a>
-
-                    <a href="#" class="nav-link text-white">
-                        <i class="bi bi-kanban me-2"></i>
-                        Producción
-                    </a>
-
-
-
-                    <a href="{{ route('productos.index') }}"
-                        class="nav-link rounded
-   {{ request()->routeIs('productos.*') ? 'bg-warning text-dark' : 'text-white' }}">
-                        <i class="bi bi-boxes me-2"></i>
-                        Productos
-                    </a>
-
-                    <a href="{{ route('clientes.index') }}"
-                        class="nav-link rounded
-   {{ request()->routeIs('clientes.*') ? 'bg-warning text-dark' : 'text-white' }}">
-                        <i class="bi bi-people me-2"></i>
-                        Clientes
-                    </a>
-
-                    <a href="{{ route('planes.index') }}"
-                        class="nav-link rounded
-   {{ request()->routeIs('planes.*') ? 'bg-warning text-dark' : 'text-white' }}">
-                        <i class="bi bi-people me-2"></i>
-                        Planes de producción
-                    </a>
-
-                    <a href="#" class="nav-link text-white">
-                        <i class="bi bi-box-seam me-2"></i>
-                        Chasis
-                    </a>
-
-                    <a href="#" class="nav-link text-white">
-                        <i class="bi bi-check2-square me-2"></i>
-                        Calidad
-                    </a>
-
-                    <a href="#" class="nav-link text-white">
-                        <i class="bi bi-bar-chart-line me-2"></i>
-                        Reportes
-                    </a>
-
-                </nav>
+            {{-- Menú lateral para PC --}}
+            <aside class="col-md-3 col-lg-2 bg-dark text-white min-vh-100 p-3 d-none d-md-block">
+                @include('layouts.menu')
             </aside>
 
-            <main class="col-md-9 col-lg-10 p-4">
+            {{-- Contenido --}}
+            <main class="col-12 col-md-9 col-lg-10 p-3 p-md-4">
                 @yield('content')
             </main>
 

@@ -1,0 +1,60 @@
+<h6 class="text-uppercase text-warning mb-3">
+    Menú principal
+</h6>
+
+<nav class="nav flex-column gap-2">
+
+    <a href="{{ route('dashboard') }}"
+       class="nav-link text-white rounded
+       {{ request()->routeIs('dashboard') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-speedometer2 me-2"></i>
+        Tablero
+    </a>
+
+    <a href="{{ route('produccion.movil') }}"
+       class="nav-link text-white rounded
+       {{ request()->routeIs('produccion.movil') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-phone me-2"></i>
+        Producción móvil
+    </a>
+
+    <a href="{{ route('productos.index') }}"
+       class="nav-link text-white rounded
+       {{ request()->routeIs('productos.*') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-boxes me-2"></i>
+        Productos
+    </a>
+
+    <a href="{{ route('clientes.index') }}"
+       class="nav-link text-white rounded
+       {{ request()->routeIs('clientes.*') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-people me-2"></i>
+        Clientes
+    </a>
+
+    <a href="{{ route('planes.index') }}"
+       class="nav-link text-white rounded
+       {{ request()->routeIs('planes.*') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-calendar3 me-2"></i>
+        Planes de producción
+    </a>
+
+    <a href="#"
+       class="nav-link text-white">
+        <i class="bi bi-box-seam me-2"></i>
+        Chasis
+    </a>
+
+    <a href="#"
+       class="nav-link text-white">
+        <i class="bi bi-check2-square me-2"></i>
+        Calidad
+    </a>
+
+    <a href="#"
+       class="nav-link text-white">
+        <i class="bi bi-bar-chart-line me-2"></i>
+        Reportes
+    </a>
+
+</nav>
