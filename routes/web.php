@@ -9,6 +9,7 @@ use App\Http\Controllers\ProductoComponenteController;
 use App\Http\Controllers\AvanceProduccionController;
 use App\Http\Controllers\UnidadControlCalidadController;
 use App\Http\Controllers\ProduccionMovilController;
+use App\Http\Controllers\UnidadQrController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -138,21 +139,24 @@ Route::middleware('auth')->group(function () {
     )->name('planes.avances.finalizar');
 
     Route::get(
-    '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/calidad',
-    [UnidadControlCalidadController::class, 'index']
-)->name('planes.productos.unidades.calidad');
+        '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/calidad',
+        [UnidadControlCalidadController::class, 'index']
+    )->name('planes.productos.unidades.calidad');
 
-Route::put(
-    '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/calidad',
-    [UnidadControlCalidadController::class, 'update']
-)->name('planes.productos.unidades.calidad.update');
+    Route::put(
+        '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/calidad',
+        [UnidadControlCalidadController::class, 'update']
+    )->name('planes.productos.unidades.calidad.update');
 
-Route::get(
-    '/produccion/movil',
-    [ProduccionMovilController::class, 'index']
-)->name('produccion.movil');
+    Route::get(
+        '/produccion/movil',
+        [ProduccionMovilController::class, 'index']
+    )->name('produccion.movil');
 
-
+    Route::get(
+        '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/qr',
+        [UnidadQrController::class, 'show']
+    )->name('planes.productos.unidades.qr');
 });
 
 

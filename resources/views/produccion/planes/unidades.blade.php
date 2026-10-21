@@ -89,6 +89,12 @@
                                             Calidad
                                         </a>
 
+                                        <a href="{{ route('planes.productos.unidades.qr', [$plan, $planProducto, $unidad]) }}"
+                                            target="_blank" class="btn btn-sm btn-dark">
+                                            <i class="bi bi-qr-code me-1"></i>
+                                            QR
+                                        </a>
+
                                     </td>
 
                                 </tr>

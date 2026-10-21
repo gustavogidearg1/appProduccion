@@ -162,11 +162,24 @@
                                     class="btn btn-outline-primary btn-lg">
                                     Componentes y trazabilidad
                                 </a>
-
-                                <a href="{{ route('planes.productos.unidades.edit', [$plan, $unidad->planProducto, $unidad]) }}"
-                                    class="btn btn-outline-secondary btn-lg">
-                                    Editar unidad
-                                </a>
+@if ($unidad->estado !== 'entregada')
+    <a href="{{ route(
+        'planes.productos.unidades.edit',
+        [
+            $plan,
+            $unidad->planProducto,
+            $unidad
+        ]
+    ) }}"
+       class="btn btn-outline-secondary btn-lg">
+        Editar unidad
+    </a>
+@else
+    <div class="alert alert-success text-center mb-0">
+        <i class="bi bi-check-circle me-1"></i>
+        Unidad entregada. Solo consulta.
+    </div>
+@endif
 
                             </div>
 

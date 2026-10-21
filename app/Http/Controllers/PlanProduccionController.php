@@ -224,6 +224,13 @@ class PlanProduccionController extends Controller
             abort(404);
         }
 
+        if ($unidad->estado === 'entregada') {
+    return back()->with(
+        'error',
+        'No se puede modificar una unidad que ya fue entregada.'
+    );
+}
+
         $datos = $request->validate([
             'chasis' => [
                 'nullable',
@@ -250,6 +257,7 @@ class PlanProduccionController extends Controller
                 'string',
             ],
         ]);
+
 
         $unidad->update($datos);
 
