@@ -13,19 +13,19 @@ class ControlCalidad extends Model
     protected $table = 'controles_calidad';
 
     protected $fillable = [
-        'nombre',
-        'descripcion',
-        'tipo_respuesta',
-        'orden',
-        'obligatorio',
-        'activo',
-    ];
+    'nombre',
+    'descripcion',
+    'tipo_respuesta',
+    'orden',
+    'obligatorio',
+    'activo',
+];
 
     protected $casts = [
-        'orden' => 'integer',
-        'obligatorio' => 'boolean',
-        'activo' => 'boolean',
-    ];
+    'orden' => 'integer',
+    'obligatorio' => 'boolean',
+    'activo' => 'boolean',
+];
 
     public function productos(): HasMany
     {

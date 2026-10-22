@@ -1,5 +1,5 @@
 <h6 class="text-uppercase text-warning mb-3">
-    Menú principal
+    Operación
 </h6>
 
 <nav class="nav flex-column gap-2">
@@ -18,6 +18,27 @@
         Producción móvil
     </a>
 
+    <a href="{{ route('planes.index') }}"
+       class="nav-link text-white rounded
+       {{ request()->routeIs('planes.*') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-calendar3 me-2"></i>
+        Planes de producción
+    </a>
+
+    <a href="#"
+       class="nav-link text-white rounded">
+        <i class="bi bi-box-seam me-2"></i>
+        Chasis
+    </a>
+
+</nav>
+
+<h6 class="text-uppercase text-warning mt-4 mb-3">
+    ABM
+</h6>
+
+<nav class="nav flex-column gap-2">
+
     <a href="{{ route('productos.index') }}"
        class="nav-link text-white rounded
        {{ request()->routeIs('productos.*') ? 'bg-warning text-dark' : '' }}">
@@ -32,27 +53,30 @@
         Clientes
     </a>
 
-    <a href="{{ route('planes.index') }}"
-       class="nav-link text-white rounded
-       {{ request()->routeIs('planes.*') ? 'bg-warning text-dark' : '' }}">
-        <i class="bi bi-calendar3 me-2"></i>
-        Planes de producción
-    </a>
+</nav>
 
-    <a href="#"
-       class="nav-link text-white">
-        <i class="bi bi-box-seam me-2"></i>
-        Chasis
-    </a>
+<h6 class="text-uppercase text-warning mt-4 mb-3">
+    Calidad
+</h6>
 
-    <a href="#"
-       class="nav-link text-white">
+<nav class="nav flex-column gap-2">
+
+    <a href="{{ route('calidad.index') }}"
+   class="nav-link text-white rounded
+   {{ request()->routeIs('calidad.*') ? 'bg-warning text-dark' : '' }}">
         <i class="bi bi-check2-square me-2"></i>
-        Calidad
+        Controles de calidad
     </a>
+</nav>
+
+<h6 class="text-uppercase text-warning mt-4 mb-3">
+    Reportes
+</h6>
+
+<nav class="nav flex-column gap-2">
 
     <a href="#"
-       class="nav-link text-white">
+       class="nav-link text-white rounded">
         <i class="bi bi-bar-chart-line me-2"></i>
         Reportes
     </a>

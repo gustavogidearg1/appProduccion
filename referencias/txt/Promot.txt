@@ -1,0 +1,7 @@
+Antes de seguir, Img-planes-5 necesitaría que contenga los números de chasis ya, que no haga falta acceder al ejemplo imagen del planes-5-productos-6-unidades.
+En Unidades de producción, no me hace falta que em diga la unidad, debería ser:
+Chasis - Serie - Cliente - Estado - Color - Obs - Acciones
+
+En componentes o en algún lado, debería indicar si contienen algún componentes, por ejemplo un numero para indicarnos que contiene uno o dos componentes y entrar en casos que haga falta agregar o no.
+El Qr, después cuando hagamos el show del chasis, debería estar ubicado en una esquina, con todo la información, con el ejemplo que había pasado de la OIF.
+Los avances globales debería ser por Plan, los avances individuales con los controles de calidad, debería ser por unidad, o sea por chasis.

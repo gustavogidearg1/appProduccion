@@ -13,14 +13,15 @@ class UnidadControlCalidad extends Model
     protected $table = 'unidad_controles_calidad';
 
     protected $fillable = [
-        'unidad_produccion_id',
-        'control_calidad_id',
-        'resultado',
-        'valor',
-        'observaciones',
-        'user_id',
-        'fecha_control',
-    ];
+    'unidad_produccion_id',
+    'control_calidad_id',
+    'resultado',
+    'valor',
+    'observaciones',
+    'evidencia_path',
+    'user_id',
+    'fecha_control',
+];
 
     protected $casts = [
         'unidad_produccion_id' => 'integer',

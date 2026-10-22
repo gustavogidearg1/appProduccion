@@ -147,16 +147,13 @@ class AvanceProduccionController extends Controller
                 ->whereHas('control', function ($query) {
                     $query->where('obligatorio', true);
                 })
-                ->whereNotIn('resultado', [
-                    'aprobado',
-                    'no_aplica',
-                ])
+                ->where('resultado', 'pendiente')
                 ->count();
 
             if ($controlesPendientes > 0) {
                 return back()->with(
                     'error',
-                    'No se puede finalizar OK Calidad. Hay controles obligatorios pendientes u observados.'
+                    'No se puede finalizar OK Calidad. Hay controles obligatorios pendientes.'
                 );
             }
         }
@@ -168,17 +165,6 @@ class AvanceProduccionController extends Controller
             'observaciones' => $request->input('observaciones'),
         ]);
 
-        if ($etapa->codigo === 'OK_CALIDAD') {
-    $unidad->update([
-        'estado' => 'terminada',
-    ]);
-}
-
-if ($etapa->codigo === 'ENTREGADO') {
-    $unidad->update([
-        'estado' => 'entregada',
-    ]);
-}
 
         return back()->with(
             'success',

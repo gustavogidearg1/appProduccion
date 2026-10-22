@@ -170,6 +170,8 @@ class PlanProduccionController extends Controller
         $planProducto->load([
             'producto',
             'unidadesProduccion.cliente',
+            'unidadesProduccion.componentes',
+            'unidadesProduccion.controlesCalidad',
         ]);
 
         return view(
@@ -177,6 +179,36 @@ class PlanProduccionController extends Controller
             compact('plan', 'planProducto')
         );
     }
+
+    public function showUnidad(
+    PlanProduccion $plan,
+    PlanProducto $planProducto,
+    UnidadProduccion $unidad
+) {
+    if (
+        $planProducto->plan_produccion_id !== $plan->id ||
+        $unidad->plan_producto_id !== $planProducto->id
+    ) {
+        abort(404);
+    }
+
+    $unidad->load([
+        'planProducto.producto',
+        'cliente',
+        'componentes.producto',
+        'controlesCalidad.control',
+        'avances.etapa',
+    ]);
+
+    return view(
+        'produccion.planes.unidad-show',
+        compact(
+            'plan',
+            'planProducto',
+            'unidad'
+        )
+    );
+}
 
     public function editUnidad(
         PlanProduccion $plan,

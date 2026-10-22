@@ -10,6 +10,7 @@ use App\Http\Controllers\AvanceProduccionController;
 use App\Http\Controllers\UnidadControlCalidadController;
 use App\Http\Controllers\ProduccionMovilController;
 use App\Http\Controllers\UnidadQrController;
+use App\Http\Controllers\FamiliaControlCalidadController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -157,6 +158,50 @@ Route::middleware('auth')->group(function () {
         '/planes/{plan}/productos/{planProducto}/unidades/{unidad}/qr',
         [UnidadQrController::class, 'show']
     )->name('planes.productos.unidades.qr');
+
+    Route::get(
+        '/planes/{plan}/productos/{planProducto}/unidades/{unidad}',
+        [PlanProduccionController::class, 'showUnidad']
+    )->name('planes.productos.unidades.show');
+
+    Route::get('/calidad', [
+        FamiliaControlCalidadController::class,
+        'familias',
+    ])->name('calidad.index');
+
+    Route::prefix('calidad/familias/{familia}/controles')
+        ->name('calidad.familias.controles.')
+        ->group(function () {
+            Route::get('/', [
+                FamiliaControlCalidadController::class,
+                'index',
+            ])->name('index');
+
+            Route::get('/create', [
+                FamiliaControlCalidadController::class,
+                'create',
+            ])->name('create');
+
+            Route::post('/', [
+                FamiliaControlCalidadController::class,
+                'store',
+            ])->name('store');
+
+            Route::get('/{familiaControl}/edit', [
+                FamiliaControlCalidadController::class,
+                'edit',
+            ])->name('edit');
+
+            Route::put('/{familiaControl}', [
+                FamiliaControlCalidadController::class,
+                'update',
+            ])->name('update');
+
+            Route::delete('/{familiaControl}', [
+                FamiliaControlCalidadController::class,
+                'destroy',
+            ])->name('destroy');
+        });
 });
 
 
