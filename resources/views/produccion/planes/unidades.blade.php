@@ -52,7 +52,15 @@
                                 @php
                                     $cantidadComponentes = $unidad->componentes?->count() ?? 0;
 
-                                    $controles = $unidad->controlesCalidad ?? collect();
+                                    $avanceActual = $unidad->avances
+                                        ->where('estado', 'en_proceso')
+                                        ->sortBy(fn($avance) => $avance->etapa?->orden ?? 999)
+                                        ->first();
+
+                                    $controles = ($unidad->controlesCalidad ?? collect())->whereIn(
+                                        'control_calidad_id',
+                                        $controlesFamiliaIds,
+                                    );
 
                                     $aprobados = $controles->whereIn('resultado', ['aprobado', 'no_aplica'])->count();
 
@@ -61,6 +69,8 @@
                                     $observados = $controles->whereIn('resultado', ['observado', 'rechazado'])->count();
 
                                     $estado = str_replace('_', ' ', $unidad->estado);
+
+                                    $nombreEstado = $avanceActual?->etapa?->nombre ?? ucfirst($estado);
                                 @endphp
 
                                 <tr>
@@ -77,7 +87,11 @@
                                     </td>
 
                                     <td>
-                                        @if ($unidad->estado === 'entregada')
+                                        @if ($avanceActual?->etapa)
+                                            <span class="badge bg-warning text-dark">
+                                                {{ $nombreEstado }}
+                                            </span>
+                                        @elseif ($unidad->estado === 'entregada')
                                             <span class="badge bg-success">
                                                 Entregada
                                             </span>
@@ -85,17 +99,13 @@
                                             <span class="badge bg-primary">
                                                 Terminada
                                             </span>
-                                        @elseif ($unidad->estado === 'en_produccion')
-                                            <span class="badge bg-warning text-dark">
-                                                En producción
-                                            </span>
                                         @elseif ($unidad->estado === 'cancelada')
                                             <span class="badge bg-danger">
                                                 Cancelada
                                             </span>
                                         @else
                                             <span class="badge bg-secondary">
-                                                {{ ucfirst($estado) }}
+                                                {{ ucfirst($nombreEstado) }}
                                             </span>
                                         @endif
                                     </td>
@@ -164,11 +174,7 @@
                                                 Calidad
                                             </a>
 
-                                            <a href="{{ route('planes.productos.unidades.qr', [$plan, $planProducto, $unidad]) }}"
-                                                target="_blank" class="btn btn-sm btn-dark">
-                                                <i class="bi bi-qr-code me-1"></i>
-                                                QR
-                                            </a>
+
 
                                         </div>
                                     </td>

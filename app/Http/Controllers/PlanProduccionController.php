@@ -10,6 +10,7 @@ use App\Models\UnidadProduccion;
 use App\Models\UnidadComponente;
 use App\Models\ProductoControlCalidad;
 use App\Models\UnidadControlCalidad;
+use App\Models\FamiliaControlCalidad;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -160,55 +161,68 @@ class PlanProduccionController extends Controller
     }
 
     public function unidades(
-        PlanProduccion $plan,
-        PlanProducto $planProducto
-    ) {
-        if ($planProducto->plan_produccion_id !== $plan->id) {
-            abort(404);
-        }
-
-        $planProducto->load([
-            'producto',
-            'unidadesProduccion.cliente',
-            'unidadesProduccion.componentes',
-            'unidadesProduccion.controlesCalidad',
-        ]);
-
-        return view(
-            'produccion.planes.unidades',
-            compact('plan', 'planProducto')
-        );
-    }
-
-    public function showUnidad(
     PlanProduccion $plan,
-    PlanProducto $planProducto,
-    UnidadProduccion $unidad
+    PlanProducto $planProducto
 ) {
-    if (
-        $planProducto->plan_produccion_id !== $plan->id ||
-        $unidad->plan_producto_id !== $planProducto->id
-    ) {
+    if ($planProducto->plan_produccion_id !== $plan->id) {
         abort(404);
     }
 
-    $unidad->load([
-        'planProducto.producto',
-        'cliente',
-        'componentes.producto',
-        'controlesCalidad.control',
-        'avances.etapa',
+    $planProducto->load([
+        'producto',
+        'unidadesProduccion.cliente',
+        'unidadesProduccion.componentes',
+        'unidadesProduccion.controlesCalidad',
+        'unidadesProduccion.avances.etapa',
     ]);
 
+    $controlesFamiliaIds = FamiliaControlCalidad::query()
+        ->where(
+            'familia_id',
+            $planProducto->producto?->familia_id
+        )
+        ->where('activo', true)
+        ->pluck('control_calidad_id');
+
     return view(
-        'produccion.planes.unidad-show',
+        'produccion.planes.unidades',
         compact(
             'plan',
             'planProducto',
-            'unidad'
+            'controlesFamiliaIds'
         )
     );
 }
+
+    public function showUnidad(
+        PlanProduccion $plan,
+        PlanProducto $planProducto,
+        UnidadProduccion $unidad
+    ) {
+        if (
+            $planProducto->plan_produccion_id !== $plan->id ||
+            $unidad->plan_producto_id !== $planProducto->id
+        ) {
+            abort(404);
+        }
+
+        $unidad->load([
+            'planProducto.producto',
+            'cliente',
+            'componentes.producto',
+            'controlesCalidad.control',
+            'avances.etapa',
+        ]);
+
+        return view(
+            'produccion.planes.unidad-show',
+            compact(
+                'plan',
+                'planProducto',
+                'unidad'
+            )
+        );
+    }
 
     public function editUnidad(
         PlanProduccion $plan,
@@ -257,11 +271,11 @@ class PlanProduccionController extends Controller
         }
 
         if ($unidad->estado === 'entregada') {
-    return back()->with(
-        'error',
-        'No se puede modificar una unidad que ya fue entregada.'
-    );
-}
+            return back()->with(
+                'error',
+                'No se puede modificar una unidad que ya fue entregada.'
+            );
+        }
 
         $datos = $request->validate([
             'chasis' => [
@@ -301,18 +315,35 @@ class PlanProduccionController extends Controller
     public function generarUnidades(
         PlanProduccion $plan,
         PlanProducto $planProducto
-
-
     ) {
+        if ($planProducto->plan_produccion_id !== $plan->id) {
+            abort(404);
+        }
 
-        $controlesCalidad = ProductoControlCalidad::query()
-            ->where('producto_id', $planProducto->producto_id)
+        $planProducto->load('producto');
+
+        $familiaId = $planProducto->producto?->familia_id;
+
+        $controlesFamilia = FamiliaControlCalidad::query()
+            ->where('familia_id', $familiaId)
             ->where('activo', true)
+            ->orderBy('etapa_produccion_id')
             ->orderBy('orden')
             ->get();
 
-        if ($planProducto->plan_produccion_id !== $plan->id) {
-            abort(404);
+        /*
+     * Compatibilidad temporal:
+     * si la familia todavía no tiene controles,
+     * utiliza los controles antiguos del producto.
+     */
+        $controlesProducto = collect();
+
+        if ($controlesFamilia->isEmpty()) {
+            $controlesProducto = ProductoControlCalidad::query()
+                ->where('producto_id', $planProducto->producto_id)
+                ->where('activo', true)
+                ->orderBy('orden')
+                ->get();
         }
 
         $cantidad = (float) $planProducto->cantidad;
@@ -356,7 +387,16 @@ class PlanProduccionController extends Controller
                 ]);
             }
 
-            foreach ($controlesCalidad as $controlProducto) {
+            foreach ($controlesFamilia as $controlFamilia) {
+                UnidadControlCalidad::create([
+                    'unidad_produccion_id' => $unidad->id,
+                    'control_calidad_id' => $controlFamilia->control_calidad_id,
+                    'etapa_produccion_id' => $controlFamilia->etapa_produccion_id,
+                    'resultado' => 'pendiente',
+                ]);
+            }
+
+            foreach ($controlesProducto as $controlProducto) {
                 UnidadControlCalidad::create([
                     'unidad_produccion_id' => $unidad->id,
                     'control_calidad_id' => $controlProducto->control_calidad_id,
@@ -367,7 +407,7 @@ class PlanProduccionController extends Controller
 
         return back()->with(
             'success',
-            'Unidades y componentes estándar generados correctamente.'
+            'Unidades, componentes y controles de calidad generados correctamente.'
         );
     }
 }
