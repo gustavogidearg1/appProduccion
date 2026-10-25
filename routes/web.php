@@ -12,6 +12,7 @@ use App\Http\Controllers\ProduccionMovilController;
 use App\Http\Controllers\UnidadQrController;
 use App\Http\Controllers\FamiliaControlCalidadController;
 
+
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -129,6 +130,12 @@ Route::middleware('auth')->group(function () {
         [AvanceProduccionController::class, 'plan']
     )->name('planes.avances');
 
+    Route::put(
+    '/planes/{plan}/avances/{etapa}',
+    [AvanceProduccionController::class, 'updatePlan']
+    )->name('planes.avances.update');
+
+
     Route::post(
         '/planes/{plan}/avances/{etapa}/iniciar',
         [AvanceProduccionController::class, 'iniciarPlan']
@@ -202,6 +209,10 @@ Route::middleware('auth')->group(function () {
                 'destroy',
             ])->name('destroy');
         });
+
+
+
+
 });
 
 

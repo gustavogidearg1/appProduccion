@@ -49,9 +49,9 @@
                 </div>
 
                 <div class="col-12 col-md-3">
-                    <strong>Prioridad</strong><br>
+                    <strong>Fecha de finalización planificada</strong><br>
 
-                    {{ $plan->prioridad }}
+                    {{ $plan->fecha_fin_planificada?->format('d/m/Y') ?? '-' }}
                 </div>
 
                 <div class="col-12">
@@ -99,36 +99,39 @@
                                 </td>
 
                                 <td>
-                                    @if ($linea->unidadesProduccion->isNotEmpty())
-                                        <div class="d-flex flex-column gap-1">
-                                            @foreach ($linea->unidadesProduccion as $unidad)
-                                                <div>
-                                                    <span class="badge bg-dark">
-                                                        {{ $unidad->chasis ?: 'Sin chasis' }}
-                                                    </span>
+    @foreach($linea->unidadesProduccion as $unidad)
+        @php
+            $avanceActual = $unidad->avances
+                ->where('estado', 'en_proceso')
+                ->sortBy(fn ($avance) =>
+                    $avance->etapa?->orden ?? 999
+                )
+                ->first();
 
-                                                    @if ($unidad->estado === 'entregada')
-                                                        <span class="badge bg-success">
-                                                            Entregada
-                                                        </span>
-                                                    @elseif ($unidad->estado === 'terminada')
-                                                        <span class="badge bg-primary">
-                                                            Terminada
-                                                        </span>
-                                                    @else
-                                                        <span class="badge bg-secondary">
-                                                            {{ ucfirst(str_replace('_', ' ', $unidad->estado)) }}
-                                                        </span>
-                                                    @endif
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <span class="text-muted">
-                                            Sin unidades generadas
-                                        </span>
-                                    @endif
-                                </td>
+            $ultimaEtapa = $unidad->avances
+                ->where('estado', 'completada')
+                ->sortByDesc(fn ($avance) =>
+                    $avance->etapa?->orden ?? 0
+                )
+                ->first();
+
+            $estadoActual =
+                $avanceActual?->etapa?->nombre
+                ?? $ultimaEtapa?->etapa?->nombre
+                ?? 'Planificada';
+        @endphp
+
+        <div class="mb-1">
+            <span class="badge bg-dark">
+                {{ $unidad->chasis }}
+            </span>
+
+            <span class="badge bg-secondary">
+                {{ $estadoActual }}
+            </span>
+        </div>
+    @endforeach
+</td>
 
                                 <td>
                                     {{ $linea->producto?->ue_produccion ?? '-' }}

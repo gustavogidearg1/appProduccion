@@ -22,6 +22,8 @@ class AvanceProduccion extends Model
         'iniciado_por',
         'finalizado_por',
         'observaciones',
+        'fecha_inicio_planificada',
+        'fecha_fin_planificada'
     ];
 
     protected $casts = [
@@ -32,6 +34,8 @@ class AvanceProduccion extends Model
         'finalizado_por' => 'integer',
         'fecha_inicio' => 'datetime',
         'fecha_fin' => 'datetime',
+        'fecha_inicio_planificada' => 'datetime',
+        'fecha_fin_planificada' => 'datetime',
     ];
 
     public function etapa(): BelongsTo

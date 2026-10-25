@@ -2,30 +2,137 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EtapaProduccion;
+use App\Models\FamiliaControlCalidad;
 use App\Models\PlanProduccion;
 use App\Models\PlanProducto;
 use App\Models\Producto;
 use App\Models\ProductoComponente;
-use App\Models\UnidadProduccion;
-use App\Models\UnidadComponente;
 use App\Models\ProductoControlCalidad;
+use App\Models\UnidadComponente;
 use App\Models\UnidadControlCalidad;
-use App\Models\FamiliaControlCalidad;
-
+use App\Models\UnidadProduccion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PlanProduccionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $planes = PlanProduccion::with('planProductos.producto')
-            ->orderByDesc('numero')
-            ->paginate(20);
+        $etapas = EtapaProduccion::query()
+            ->where('alcance', 'unidad')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
 
-        return view('produccion.planes.index', compact('planes'));
+        $etapaIds = $etapas
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        $filtros = $request->validate([
+            'fecha_desde' => [
+                'nullable',
+                'date',
+            ],
+
+            'fecha_hasta' => [
+                'nullable',
+                'date',
+                'after_or_equal:fecha_desde',
+            ],
+
+            'estado' => [
+                'nullable',
+                'string',
+                'in:abierto,cerrado,cancelado',
+            ],
+
+            'etapa_id' => [
+                'nullable',
+                Rule::in(
+                    array_merge(
+                        ['planificada', 'entregada'],
+                        $etapaIds
+                    )
+                ),
+            ],
+        ]);
+
+        if (!$request->has('estado')) {
+            $filtros['estado'] = 'abierto';
+        }
+
+        $consulta = PlanProduccion::with([
+            'planProductos.producto',
+            'planProductos.unidadesProduccion.avances.etapa',
+        ]);
+
+        if (!empty($filtros['fecha_desde'])) {
+            $consulta->whereDate(
+                'fecha_planificada',
+                '>=',
+                $filtros['fecha_desde']
+            );
+        }
+
+        if (!empty($filtros['fecha_hasta'])) {
+            $consulta->whereDate(
+                'fecha_planificada',
+                '<=',
+                $filtros['fecha_hasta']
+            );
+        }
+
+        if (!empty($filtros['estado'])) {
+            $consulta->where(
+                'estado',
+                $filtros['estado']
+            );
+        }
+
+        if (!empty($filtros['etapa_id'])) {
+            if ($filtros['etapa_id'] === 'planificada') {
+                $consulta->whereHas(
+                    'planProductos.unidadesProduccion',
+                    function ($query) {
+                        $query
+                            ->where('estado', 'planificada')
+                            ->whereDoesntHave('avances');
+                    }
+                );
+            } elseif ($filtros['etapa_id'] === 'entregada') {
+                $consulta->whereHas(
+                    'planProductos.unidadesProduccion',
+                    function ($query) {
+                        $query->where('estado', 'entregada');
+                    }
+                );
+            } else {
+                $consulta->whereHas(
+                    'planProductos.unidadesProduccion.avances',
+                    function ($query) use ($filtros) {
+                        $query
+                            ->where('etapa_id', $filtros['etapa_id'])
+                            ->where('estado', 'en_proceso');
+                    }
+                );
+            }
+        }
+
+        $planes = $consulta
+            ->orderByRaw('fecha_planificada IS NULL')
+            ->orderBy('fecha_planificada')
+            ->orderBy('numero')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view(
+            'produccion.planes.index',
+            compact('planes', 'filtros', 'etapas')
+        );
     }
 
     public function create()
@@ -40,17 +147,23 @@ class PlanProduccionController extends Controller
                 'ue_produccion',
             ]);
 
-        return view('produccion.planes.create', compact('productos'));
+        return view(
+            'produccion.planes.create',
+            compact('productos')
+        );
     }
 
     public function show(PlanProduccion $plan)
     {
         $plan->load([
             'planProductos.producto',
-            'planProductos.unidadesProduccion',
+            'planProductos.unidadesProduccion.avances.etapa',
         ]);
 
-        return view('produccion.planes.show', compact('plan'));
+        return view(
+            'produccion.planes.show',
+            compact('plan')
+        );
     }
 
     public function store(Request $request)
@@ -66,6 +179,12 @@ class PlanProduccionController extends Controller
             'fecha_planificada' => [
                 'nullable',
                 'date',
+            ],
+
+            'fecha_fin_planificada' => [
+                'nullable',
+                'date',
+                'after_or_equal:fecha_planificada',
             ],
 
             'prioridad' => [
@@ -119,17 +238,18 @@ class PlanProduccionController extends Controller
             ->whereIn('id', $datos['producto_id'])
             ->where('activo', true)
             ->pluck('id')
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->all();
 
         $productosSolicitados = array_map(
-            fn($id) => (int) $id,
+            fn ($id) => (int) $id,
             $datos['producto_id']
         );
 
         if (count($productosActivos) !== count($productosSolicitados)) {
             throw ValidationException::withMessages([
-                'producto_id' => 'Uno o más productos no existen o están inactivos.',
+                'producto_id' =>
+                    'Uno o más productos no existen o están inactivos.',
             ]);
         }
 
@@ -137,9 +257,13 @@ class PlanProduccionController extends Controller
             $plan = PlanProduccion::create([
                 'numero' => $datos['numero'],
                 'estado' => 'abierto',
-                'fecha_planificada' => $datos['fecha_planificada'] ?? null,
+                'fecha_planificada' =>
+                    $datos['fecha_planificada'] ?? null,
+                'fecha_fin_planificada' =>
+                    $datos['fecha_fin_planificada'] ?? null,
                 'prioridad' => $datos['prioridad'] ?? 0,
-                'observaciones' => $datos['observaciones_plan'] ?? null,
+                'observaciones' =>
+                    $datos['observaciones_plan'] ?? null,
             ]);
 
             foreach ($datos['producto_id'] as $indice => $productoId) {
@@ -147,7 +271,8 @@ class PlanProduccionController extends Controller
                     'plan_produccion_id' => $plan->id,
                     'producto_id' => $productoId,
                     'cantidad' => $datos['cantidad'][$indice],
-                    'observaciones' => $datos['observaciones'][$indice] ?? null,
+                    'observaciones' =>
+                        $datos['observaciones'][$indice] ?? null,
                 ]);
             }
         });
@@ -161,38 +286,38 @@ class PlanProduccionController extends Controller
     }
 
     public function unidades(
-    PlanProduccion $plan,
-    PlanProducto $planProducto
-) {
-    if ($planProducto->plan_produccion_id !== $plan->id) {
-        abort(404);
+        PlanProduccion $plan,
+        PlanProducto $planProducto
+    ) {
+        if ($planProducto->plan_produccion_id !== $plan->id) {
+            abort(404);
+        }
+
+        $planProducto->load([
+            'producto',
+            'unidadesProduccion.cliente',
+            'unidadesProduccion.componentes',
+            'unidadesProduccion.controlesCalidad',
+            'unidadesProduccion.avances.etapa',
+        ]);
+
+        $controlesFamiliaIds = FamiliaControlCalidad::query()
+            ->where(
+                'familia_id',
+                $planProducto->producto?->familia_id
+            )
+            ->where('activo', true)
+            ->pluck('control_calidad_id');
+
+        return view(
+            'produccion.planes.unidades',
+            compact(
+                'plan',
+                'planProducto',
+                'controlesFamiliaIds'
+            )
+        );
     }
-
-    $planProducto->load([
-        'producto',
-        'unidadesProduccion.cliente',
-        'unidadesProduccion.componentes',
-        'unidadesProduccion.controlesCalidad',
-        'unidadesProduccion.avances.etapa',
-    ]);
-
-    $controlesFamiliaIds = FamiliaControlCalidad::query()
-        ->where(
-            'familia_id',
-            $planProducto->producto?->familia_id
-        )
-        ->where('activo', true)
-        ->pluck('control_calidad_id');
-
-    return view(
-        'produccion.planes.unidades',
-        compact(
-            'plan',
-            'planProducto',
-            'controlesFamiliaIds'
-        )
-    );
-}
 
     public function showUnidad(
         PlanProduccion $plan,
@@ -256,7 +381,6 @@ class PlanProduccionController extends Controller
         );
     }
 
-
     public function updateUnidad(
         Request $request,
         PlanProduccion $plan,
@@ -282,8 +406,10 @@ class PlanProduccionController extends Controller
                 'nullable',
                 'string',
                 'max:100',
-                Rule::unique('unidades_produccion', 'chasis')
-                    ->ignore($unidad->id),
+                Rule::unique(
+                    'unidades_produccion',
+                    'chasis'
+                )->ignore($unidad->id),
             ],
 
             'estado' => [
@@ -304,12 +430,17 @@ class PlanProduccionController extends Controller
             ],
         ]);
 
-
         $unidad->update($datos);
 
         return redirect()
-            ->route('planes.productos.unidades', [$plan, $planProducto])
-            ->with('success', 'Unidad actualizada correctamente.');
+            ->route(
+                'planes.productos.unidades',
+                [$plan, $planProducto]
+            )
+            ->with(
+                'success',
+                'Unidad actualizada correctamente.'
+            );
     }
 
     public function generarUnidades(
@@ -331,16 +462,14 @@ class PlanProduccionController extends Controller
             ->orderBy('orden')
             ->get();
 
-        /*
-     * Compatibilidad temporal:
-     * si la familia todavía no tiene controles,
-     * utiliza los controles antiguos del producto.
-     */
         $controlesProducto = collect();
 
         if ($controlesFamilia->isEmpty()) {
             $controlesProducto = ProductoControlCalidad::query()
-                ->where('producto_id', $planProducto->producto_id)
+                ->where(
+                    'producto_id',
+                    $planProducto->producto_id
+                )
                 ->where('activo', true)
                 ->orderBy('orden')
                 ->get();
@@ -348,7 +477,10 @@ class PlanProduccionController extends Controller
 
         $cantidad = (float) $planProducto->cantidad;
 
-        if ($cantidad <= 0 || floor($cantidad) !== $cantidad) {
+        if (
+            $cantidad <= 0 ||
+            floor($cantidad) !== $cantidad
+        ) {
             return back()->with(
                 'error',
                 'La cantidad debe ser un número entero para generar unidades.'
@@ -356,7 +488,10 @@ class PlanProduccionController extends Controller
         }
 
         $componentesEstandar = ProductoComponente::query()
-            ->where('producto_id', $planProducto->producto_id)
+            ->where(
+                'producto_id',
+                $planProducto->producto_id
+            )
             ->where('activo', true)
             ->get();
 
@@ -378,11 +513,13 @@ class PlanProduccionController extends Controller
             foreach ($componentesEstandar as $componenteEstandar) {
                 UnidadComponente::create([
                     'unidad_produccion_id' => $unidad->id,
-                    'producto_id' => $componenteEstandar->componente_producto_id,
+                    'producto_id' =>
+                        $componenteEstandar->componente_producto_id,
                     'cantidad' => $componenteEstandar->cantidad,
                     'estado' => 'pendiente',
                     'uso' => $componenteEstandar->uso,
-                    'observaciones' => $componenteEstandar->observaciones,
+                    'observaciones' =>
+                        $componenteEstandar->observaciones,
                     'user_id' => auth()->id(),
                 ]);
             }
@@ -390,8 +527,10 @@ class PlanProduccionController extends Controller
             foreach ($controlesFamilia as $controlFamilia) {
                 UnidadControlCalidad::create([
                     'unidad_produccion_id' => $unidad->id,
-                    'control_calidad_id' => $controlFamilia->control_calidad_id,
-                    'etapa_produccion_id' => $controlFamilia->etapa_produccion_id,
+                    'control_calidad_id' =>
+                        $controlFamilia->control_calidad_id,
+                    'etapa_produccion_id' =>
+                        $controlFamilia->etapa_produccion_id,
                     'resultado' => 'pendiente',
                 ]);
             }
@@ -399,7 +538,8 @@ class PlanProduccionController extends Controller
             foreach ($controlesProducto as $controlProducto) {
                 UnidadControlCalidad::create([
                     'unidad_produccion_id' => $unidad->id,
-                    'control_calidad_id' => $controlProducto->control_calidad_id,
+                    'control_calidad_id' =>
+                        $controlProducto->control_calidad_id,
                     'resultado' => 'pendiente',
                 ]);
             }

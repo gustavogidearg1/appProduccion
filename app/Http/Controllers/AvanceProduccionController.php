@@ -205,6 +205,55 @@ class AvanceProduccionController extends Controller
         );
     }
 
+    public function updatePlan(
+    Request $request,
+    PlanProduccion $plan,
+    EtapaProduccion $etapa
+) {
+    if (
+        $etapa->alcance !== 'plan' ||
+        !$etapa->activo
+    ) {
+        abort(404);
+    }
+
+    $datos = $request->validate([
+        'fecha_inicio_planificada' => [
+            'nullable',
+            'date',
+        ],
+
+        'fecha_fin_planificada' => [
+            'nullable',
+            'date',
+            'after_or_equal:fecha_inicio_planificada',
+        ],
+    ]);
+
+    $avance = AvanceProduccion::firstOrCreate(
+        [
+            'plan_produccion_id' => $plan->id,
+            'etapa_id' => $etapa->id,
+        ],
+        [
+            'estado' => 'pendiente',
+        ]
+    );
+
+    $avance->update([
+        'fecha_inicio_planificada' =>
+            $datos['fecha_inicio_planificada'] ?? null,
+
+        'fecha_fin_planificada' =>
+            $datos['fecha_fin_planificada'] ?? null,
+    ]);
+
+    return back()->with(
+        'success',
+        'Fechas planificadas actualizadas correctamente.'
+    );
+}
+
     public function iniciarPlan(
         PlanProduccion $plan,
         EtapaProduccion $etapa

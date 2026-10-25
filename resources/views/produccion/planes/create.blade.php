@@ -22,40 +22,38 @@
                 @csrf
 
                 <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <label class="form-label">Número de plan</label>
-                        <input
-                            type="number"
-                            class="form-control"
-                            name="numero"
-                            value="{{ old('numero') }}"
-                            min="1"
-                            required
-                        >
-                    </div>
+    <div class="col-md-4">
+        <label class="form-label">Número de plan</label>
+        <input
+            type="number"
+            class="form-control"
+            name="numero"
+            value="{{ old('numero') }}"
+            min="1"
+            required
+        >
+    </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label">Fecha planificada</label>
-                        <input
-                            type="date"
-                            class="form-control"
-                            name="fecha_planificada"
-                            value="{{ old('fecha_planificada') }}"
-                        >
-                    </div>
+    <div class="col-md-4">
+        <label class="form-label">Inicio planificado</label>
+        <input
+            type="date"
+            class="form-control"
+            name="fecha_planificada"
+            value="{{ old('fecha_planificada') }}"
+        >
+    </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label">Prioridad</label>
-                        <input
-                            type="number"
-                            class="form-control"
-                            name="prioridad"
-                            value="{{ old('prioridad', 0) }}"
-                            min="0"
-                            max="255"
-                        >
-                    </div>
-                </div>
+    <div class="col-md-4">
+        <label class="form-label">Fin estimado del plan</label>
+        <input
+            type="date"
+            class="form-control"
+            name="fecha_fin_planificada"
+            value="{{ old('fecha_fin_planificada') }}"
+        >
+    </div>
+</div>
 
                 <hr>
 

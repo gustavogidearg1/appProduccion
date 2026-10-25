@@ -15,16 +15,18 @@ class PlanProduccion extends Model
     protected $table = 'planes_produccion';
 
     protected $fillable = [
-        'numero',
-        'estado',
-        'fecha_planificada',
-        'prioridad',
-        'observaciones',
+    'numero',
+    'estado',
+    'fecha_planificada',
+    'fecha_fin_planificada',
+    'prioridad',
+    'observaciones',
     ];
 
     protected $casts = [
         'numero' => 'integer',
         'fecha_planificada' => 'date',
+        'fecha_fin_planificada' => 'date',
         'prioridad' => 'integer',
     ];
 

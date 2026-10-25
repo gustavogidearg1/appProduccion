@@ -40,19 +40,23 @@
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover mb-0 align-middle">
+
                     <thead class="table-light">
                         <tr>
                             <th>Orden</th>
                             <th>Etapa</th>
                             <th>Estado</th>
-                            <th>Inicio</th>
-                            <th>Finalización</th>
+                            <th>Inicio planificado</th>
+                            <th>Fin planificado</th>
+                            <th>Inicio real</th>
+                            <th>Fin real</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
 
                     <tbody>
                         @forelse($etapas as $etapa)
+
                             @php
                                 $avance = $avances->get($etapa->id);
 
@@ -68,14 +72,17 @@
                                             $etapaAnterior->id
                                         );
 
-                                        return $avanceAnterior?->estado
-                                            === 'completada';
+                                        return $avanceAnterior?->estado === 'completada';
                                     }
                                 );
+
+                                $formPlanificacion = 'planificacion-etapa-' . $etapa->id;
                             @endphp
 
                             <tr>
-                                <td>{{ $etapa->orden }}</td>
+                                <td>
+                                    {{ $etapa->orden }}
+                                </td>
 
                                 <td class="fw-semibold">
                                     {{ $etapa->nombre }}
@@ -102,6 +109,26 @@
                                 </td>
 
                                 <td>
+                                    <input
+                                        form="{{ $formPlanificacion }}"
+                                        type="datetime-local"
+                                        name="fecha_inicio_planificada"
+                                        class="form-control form-control-sm"
+                                        value="{{ $avance?->fecha_inicio_planificada?->format('Y-m-d\TH:i') }}"
+                                    >
+                                </td>
+
+                                <td>
+                                    <input
+                                        form="{{ $formPlanificacion }}"
+                                        type="datetime-local"
+                                        name="fecha_fin_planificada"
+                                        class="form-control form-control-sm"
+                                        value="{{ $avance?->fecha_fin_planificada?->format('Y-m-d\TH:i') }}"
+                                    >
+                                </td>
+
+                                <td>
                                     {{ $avance?->fecha_inicio?->format('d/m/Y H:i') ?? '-' }}
                                 </td>
 
@@ -110,15 +137,29 @@
                                 </td>
 
                                 <td>
+                                    <form
+                                        id="{{ $formPlanificacion }}"
+                                        method="POST"
+                                        action="{{ route('planes.avances.update', [$plan, $etapa]) }}"
+                                        class="mb-2"
+                                    >
+                                        @csrf
+                                        @method('PUT')
+
+                                        <button
+                                            type="submit"
+                                            class="btn btn-sm btn-outline-primary"
+                                        >
+                                            Guardar fechas
+                                        </button>
+                                    </form>
+
                                     @if(!$avance || $avance->estado === 'pendiente')
 
                                         @if($puedeIniciar)
                                             <form
                                                 method="POST"
-                                                action="{{ route(
-                                                    'planes.avances.iniciar',
-                                                    [$plan, $etapa]
-                                                ) }}"
+                                                action="{{ route('planes.avances.iniciar', [$plan, $etapa]) }}"
                                             >
                                                 @csrf
 
@@ -139,10 +180,7 @@
 
                                         <form
                                             method="POST"
-                                            action="{{ route(
-                                                'planes.avances.finalizar',
-                                                [$plan, $etapa]
-                                            ) }}"
+                                            action="{{ route('planes.avances.finalizar', [$plan, $etapa]) }}"
                                         >
                                             @csrf
 
@@ -161,10 +199,11 @@
                                     @endif
                                 </td>
                             </tr>
+
                         @empty
                             <tr>
                                 <td
-                                    colspan="6"
+                                    colspan="8"
                                     class="text-center py-4 text-muted"
                                 >
                                     No hay etapas grupales configuradas.
@@ -172,6 +211,7 @@
                             </tr>
                         @endforelse
                     </tbody>
+
                 </table>
             </div>
         </div>
