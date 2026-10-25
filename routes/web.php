@@ -11,6 +11,8 @@ use App\Http\Controllers\UnidadControlCalidadController;
 use App\Http\Controllers\ProduccionMovilController;
 use App\Http\Controllers\UnidadQrController;
 use App\Http\Controllers\FamiliaControlCalidadController;
+use App\Http\Controllers\VentaController;
+use App\Http\Controllers\VentaAsignacionController;
 
 
 use Illuminate\Support\Facades\Route;
@@ -131,8 +133,8 @@ Route::middleware('auth')->group(function () {
     )->name('planes.avances');
 
     Route::put(
-    '/planes/{plan}/avances/{etapa}',
-    [AvanceProduccionController::class, 'updatePlan']
+        '/planes/{plan}/avances/{etapa}',
+        [AvanceProduccionController::class, 'updatePlan']
     )->name('planes.avances.update');
 
 
@@ -210,9 +212,60 @@ Route::middleware('auth')->group(function () {
             ])->name('destroy');
         });
 
+    Route::get(
+        '/ventas',
+        [VentaController::class, 'index']
+    )->name('ventas.index');
 
+    Route::get(
+        '/ventas/create',
+        [VentaController::class, 'create']
+    )->name('ventas.create');
 
+    Route::post(
+        '/ventas',
+        [VentaController::class, 'store']
+    )->name('ventas.store');
 
+    Route::get(
+        '/ventas/{venta}',
+        [VentaController::class, 'show']
+    )->name('ventas.show');
+
+    Route::get(
+        '/ventas/detalles/{ventaDetalle}/asignar',
+        [VentaAsignacionController::class, 'create']
+    )->name('ventas.detalles.asignar');
+
+    Route::post(
+        '/ventas/detalles/{ventaDetalle}/asignar',
+        [VentaAsignacionController::class, 'store']
+    )->name('ventas.detalles.asignar.store');
+
+    Route::get(
+        '/ventas/{venta}/edit',
+        [VentaController::class, 'edit']
+    )->name('ventas.edit');
+
+    Route::put(
+        '/ventas/{venta}',
+        [VentaController::class, 'update']
+    )->name('ventas.update');
+
+    Route::post(
+        '/ventas/{venta}/anular',
+        [VentaController::class, 'anular']
+    )->name('ventas.anular');
+
+    Route::get(
+        '/ventas/{venta}/productos/agregar',
+        [VentaController::class, 'agregarProducto']
+    )->name('ventas.productos.agregar');
+
+    Route::post(
+        '/ventas/{venta}/productos',
+        [VentaController::class, 'guardarProducto']
+    )->name('ventas.productos.guardar');
 });
 
 

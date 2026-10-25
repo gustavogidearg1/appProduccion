@@ -71,4 +71,12 @@ public function controlesCalidad(): HasMany
     );
 }
 
+public function asignaciones(): HasMany
+{
+    return $this->hasMany(
+        VentaAsignacion::class,
+        'unidad_produccion_id'
+    );
+}
+
 }

@@ -69,6 +69,25 @@
     </a>
 </nav>
 
+
+<h6 class="text-uppercase text-warning mt-4 mb-3">
+    Ventas
+</h6>
+    <nav class="nav flex-column gap-2">
+
+        <a
+    href="{{ route('ventas.index') }}"
+    class="nav-link text-white rounded
+    {{ request()->routeIs('ventas.*') ? 'bg-warning text-dark' : '' }}"
+>
+    <i class="bi bi-cart me-2"></i>
+    Ventas
+</a>
+
+
+
+    </nav>
+
 <h6 class="text-uppercase text-warning mt-4 mb-3">
     Reportes
 </h6>
