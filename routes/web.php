@@ -270,4 +270,19 @@ Route::middleware('auth')->group(function () {
 
 
 
+
+Route::middleware('auth')->group(function () {
+    Route::get('/configuracion/plazos', [\App\Http\Controllers\PlazoEntregaController::class,'index'])->name('plazos.index');
+    Route::post('/configuracion/plazos', [\App\Http\Controllers\PlazoEntregaController::class,'guardar'])->name('plazos.guardar');
+    Route::post('/configuracion/calendario', [\App\Http\Controllers\PlazoEntregaController::class,'calendario'])->name('plazos.calendario');
+    Route::post('/configuracion/calendario/{cierre}/alternar', [\App\Http\Controllers\PlazoEntregaController::class,'alternar'])->name('plazos.calendario.alternar');
+    Route::get('/planes/{plan}/demoras', [\App\Http\Controllers\DemoraProduccionController::class,'index'])->name('demoras.index');
+    Route::post('/planes/{plan}/demoras', [\App\Http\Controllers\DemoraProduccionController::class,'guardar'])->name('demoras.guardar');
+    Route::post('/planes/{plan}/demoras/{demora}/resolver', [\App\Http\Controllers\DemoraProduccionController::class,'resolver'])->name('demoras.resolver');
+    Route::get('/unidades/{unidad}/entrega', [\App\Http\Controllers\EntregaUnidadController::class,'index'])->name('entregas.index');
+    Route::post('/unidades/{unidad}/entrega', [\App\Http\Controllers\EntregaUnidadController::class,'guardar'])->name('entregas.guardar');
+    Route::post('/unidades/{unidad}/entrega/fotos', [\App\Http\Controllers\EntregaUnidadController::class,'agregarFotos'])->name('entregas.fotos');
+    Route::get('/unidades/{unidad}/entrega/fotos/{foto}', [\App\Http\Controllers\EntregaUnidadController::class,'foto'])->name('entregas.foto');
+});
+
 require __DIR__ . '/auth.php';

@@ -185,7 +185,7 @@
                             </div>
 
                             <div class="fs-5">
-                                {{ $unidad->cliente?->nombre ?? '-' }}
+                                {{ $ventaVinculada ? ($ventaVinculada->cliente?->nombre ?? 'Cliente no disponible') : ($unidad->cliente?->nombre ?? '-') }}
                             </div>
                         </div>
 
@@ -235,6 +235,48 @@
 
                     </div>
                 </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="h4 mb-0">Información de venta</h2>
+                    @if ($ventaVinculada)
+                        <a href="{{ route('ventas.show', $ventaVinculada) }}" class="btn btn-sm btn-outline-primary no-print">Ver venta #{{ $ventaVinculada->id }}</a>
+                    @endif
+                </div>
+                @if ($ventaVinculada)
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6"><span class="text-muted small">Venta</span><div class="fw-semibold">#{{ $ventaVinculada->id }} · {{ $ventaVinculada->fecha?->format('d/m/Y') ?? '-' }}</div></div>
+                            <div class="col-md-6"><span class="text-muted small">Cliente de la venta</span><div class="fw-semibold">{{ $ventaVinculada->cliente?->nombre ?? 'Cliente no disponible' }}</div></div>
+                            <div class="col-md-6"><span class="text-muted small">Estado de venta</span><div>{{ ucfirst($ventaVinculada->estado) }}</div></div>
+                            <div class="col-md-6"><span class="text-muted small">Asignación del chasis</span><div><span class="badge bg-success">{{ ucfirst($asignacionVenta->estado) }}</span></div></div>
+                            <div class="col-12"><span class="text-muted small">Producto vendido vinculado a este chasis</span><div class="fw-semibold">{{ $asignacionVenta->detalle->producto?->nombre ?? 'Producto no disponible' }}</div><div class="small text-muted">1 unidad de {{ number_format((float) $asignacionVenta->detalle->cantidad, 2, ',', '.') }} en el renglón de venta.</div></div>
+                            <div class="col-12"><span class="text-muted small">Observaciones de venta</span><div style="white-space: pre-line">{{ $ventaVinculada->observaciones ?: '-' }}</div></div>
+                            @if ($asignacionVenta->observaciones)
+                                <div class="col-12"><span class="text-muted small">Observaciones de asignación</span><div style="white-space: pre-line">{{ $asignacionVenta->observaciones }}</div></div>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="px-3 pb-2">
+                        <h3 class="h6">Otros productos, componentes y accesorios de la venta</h3>
+                        <p class="small text-muted mb-2">Cantidades del pedido completo. La pertenencia de estos adicionales a este chasis no está especificada.</p>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light"><tr><th>Producto / componente</th><th>Tipo</th><th>Cantidad en venta</th></tr></thead>
+                            <tbody>
+                                @forelse ($otrosDetallesVenta as $detalleVenta)
+                                    <tr><td>{{ $detalleVenta->producto?->nombre ?? 'Producto no disponible' }}</td><td>{{ $detalleVenta->producto?->tipo?->nombre ?? '-' }}</td><td>{{ number_format((float) $detalleVenta->cantidad, 2, ',', '.') }}</td></tr>
+                                @empty
+                                    <tr><td colspan="3" class="text-muted p-3">La venta no tiene otros productos, componentes o accesorios cargados.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="card-body text-muted">Esta unidad no tiene una reserva o asignación de venta activa.</div>
+                @endif
             </div>
 
             <div class="card shadow-sm mb-4">
@@ -341,7 +383,13 @@
                 </div>
             </div>
 
+            <div class="card mb-3"><div class="card-body"><strong>Entrega estimada</strong><div>{{ $unidad->estimacion_entrega['texto'] }}</div>
+                @if ($unidad->estimacion_entrega['demora'])<div class="text-warning-emphasis">Demora / previsión vencida</div>@endif
+            </div></div>
             <div class="d-grid gap-2">
+                <a href="{{ route('entregas.index',$unidad) }}" class="btn btn-success no-print">Control de entrega y fotos</a>
+                <a href="{{ route('demoras.index',[$plan,'unidad_id'=>$unidad->id]) }}" class="btn btn-outline-warning no-print">Demoras del chasis</a>
+
 
                 <a href="{{ route(
                     'planes.productos.unidades.avances',

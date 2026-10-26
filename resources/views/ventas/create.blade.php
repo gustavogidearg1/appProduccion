@@ -155,6 +155,8 @@
             <div class="card-body">
                 <div id="productos-container">
 
+                    @foreach ($detallesIniciales as $indice => $detalleInicial)
+                    @php($unidadFila = $unidadesFormulario->get($detalleInicial['unidad_produccion_id'] ?? null))
                     <div class="producto-row border rounded p-3 mb-3">
                         <div class="row g-3 align-items-end">
 
@@ -162,31 +164,35 @@
                                 <label class="form-label">
                                     Producto
                                 </label>
+                                <input
+    type="hidden"
+    name="detalles[{{ $indice }}][unidad_produccion_id]"
+    value="{{ $detalleInicial['unidad_produccion_id'] ?? '' }}"
+>
 
+                                @if ($unidadFila)
+                                    <p class="text-muted">Chasis seleccionado: <strong>{{ $unidadFila->chasis }}</strong></p>
+                                    <input type="hidden" name="detalles[{{ $indice }}][producto_id]" value="{{ $detalleInicial['producto_id'] ?? '' }}">
+                                @endif
                                 <select
-                                    name="detalles[0][producto_id]"
-                                    class="form-select"
-                                    required
-                                >
-                                    <option value="">
-                                        Seleccionar producto
-                                    </option>
+    @disabled($unidadFila !== null)
+    name="detalles[{{ $indice }}][producto_id]"
+    class="form-select"
+    required
+>
+    <option value="">Seleccionar producto</option>
 
-                                    @foreach ($productos as $producto)
-                                        <option
-                                            value="{{ $producto->id }}"
-                                            @selected(
-                                                (string) old(
-                                                    'detalles.0.producto_id',
-                                                    $productoSeleccionadoId
-                                                ) ===
-                                                (string) $producto->id
-                                            )
-                                        >
-                                            {{ $producto->nombre }}
-                                        </option>
-                                    @endforeach
-                                </select>
+    @foreach ($productos as $producto)
+        <option
+            value="{{ $producto->id }}"
+            @selected(
+                (string) ($detalleInicial['producto_id'] ?? '') === (string) $producto->id
+            )
+        >
+            {{ $producto->nombre }}
+        </option>
+    @endforeach
+</select>
                             </div>
 
                             <div class="col-md-2">
@@ -196,11 +202,12 @@
 
                                 <input
                                     type="number"
-                                    name="detalles[0][cantidad]"
+                                    name="detalles[{{ $indice }}][cantidad]"
+                                    @readonly($unidadFila !== null)
                                     class="form-control"
                                     min="0.01"
                                     step="0.01"
-                                    value="{{ old('detalles.0.cantidad', 1) }}"
+                                    value="{{ $detalleInicial['cantidad'] ?? 1 }}"
                                     required
                                 >
                             </div>
@@ -212,11 +219,11 @@
 
                                 <input
                                     type="number"
-                                    name="detalles[0][precio_unitario]"
+                                    name="detalles[{{ $indice }}][precio_unitario]"
                                     class="form-control"
                                     min="0"
                                     step="0.01"
-                                    value="{{ old('detalles.0.precio_unitario') }}"
+                                    value="{{ $detalleInicial['precio_unitario'] ?? '' }}"
                                     required
                                 >
                             </div>
@@ -233,6 +240,7 @@
                         </div>
                     </div>
 
+                    @endforeach
                 </div>
             </div>
         </div>
@@ -264,7 +272,7 @@
         })->values()
     );
 
-    let indiceProducto = 1;
+    let indiceProducto = {{ max([0, ...array_map('intval', array_keys($detallesIniciales))]) + 1 }};
 
     const contenedor = document.getElementById('productos-container');
     const botonAgregar = document.getElementById('agregar-producto');

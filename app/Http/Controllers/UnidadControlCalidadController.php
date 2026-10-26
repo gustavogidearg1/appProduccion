@@ -193,6 +193,8 @@ private function avanzarEtapaAutomaticamente(
         ->where('estado', 'en_proceso')
         ->first();
 
+    if ($avanceActual?->etapa?->codigo === 'ENTREGADO') return;
+
     if (!$avanceActual) {
         return;
     }
@@ -229,6 +231,8 @@ private function avanzarEtapaAutomaticamente(
         'finalizado_por' => auth()->id(),
     ]);
 
+    if ($avanceActual->etapa->codigo === 'OK_CALIDAD') $unidad->update(['estado'=>'terminada']);
+
     $siguienteEtapa = EtapaProduccion::query()
         ->where('alcance', 'unidad')
         ->where('activo', true)
@@ -236,7 +240,7 @@ private function avanzarEtapaAutomaticamente(
         ->orderBy('orden')
         ->first();
 
-    if (!$siguienteEtapa) {
+    if (!$siguienteEtapa || $siguienteEtapa->codigo === 'ENTREGADO') {
         return;
     }
 

@@ -68,6 +68,10 @@ class PlanProduccionController extends Controller
         $consulta = PlanProduccion::with([
             'planProductos.producto',
             'planProductos.unidadesProduccion.avances.etapa',
+            'planProductos.unidadesProduccion.asignaciones' => fn ($query) => $query
+                ->whereIn('estado', ['reservada', 'asignada'])
+                ->whereHas('detalle.venta', fn ($venta) => $venta->where('estado', '!=', 'anulada'))
+                ->orderByDesc('id'),
         ]);
 
         if (!empty($filtros['fecha_desde'])) {
@@ -129,6 +133,26 @@ class PlanProduccionController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        foreach ($planes as $plan) {
+            $resumenPlan = ['reservadas' => 0, 'asignadas' => 0, 'total' => 0];
+            foreach ($plan->planProductos as $productoPlan) {
+                $resumen = ['reservadas' => 0, 'asignadas' => 0, 'total' => 0];
+                foreach ($productoPlan->unidadesProduccion as $unidadPlan) {
+                    // Una unidad se cuenta una sola vez, por su vínculo activo más reciente.
+                    $asignacion = $unidadPlan->asignaciones->first();
+                    if ($asignacion) {
+                        $resumen[$asignacion->estado === 'reservada' ? 'reservadas' : 'asignadas']++;
+                        $resumen['total']++;
+                    }
+                }
+                $productoPlan->setAttribute('resumen_ventas', $resumen);
+                foreach ($resumen as $clave => $cantidad) {
+                    $resumenPlan[$clave] += $cantidad;
+                }
+            }
+            $plan->setAttribute('resumen_ventas', $resumenPlan);
+        }
+
         return view(
             'produccion.planes.index',
             compact('planes', 'filtros', 'etapas')
@@ -155,15 +179,13 @@ class PlanProduccionController extends Controller
 
     public function show(PlanProduccion $plan)
     {
-        $plan->load([
-            'planProductos.producto',
-            'planProductos.unidadesProduccion.avances.etapa',
-        ]);
+        $planProducto = $plan->planProductos()->orderBy('id')->first();
+        if (!$planProducto) {
+            return redirect()->route('planes.index')
+                ->with('error', 'El plan no tiene productos cargados.');
+        }
 
-        return view(
-            'produccion.planes.show',
-            compact('plan')
-        );
+        return redirect()->route('planes.productos.unidades', [$plan, $planProducto]);
     }
 
     public function store(Request $request)
@@ -293,13 +315,28 @@ class PlanProduccionController extends Controller
             abort(404);
         }
 
+        $plan->load(['planProductos' => fn ($query) => $query->orderBy('id')->with('producto')->withCount('unidadesProduccion')]);
+
         $planProducto->load([
             'producto',
             'unidadesProduccion.cliente',
+            'unidadesProduccion.asignaciones' => fn ($query) => $query
+                ->whereIn('estado', ['reservada', 'asignada'])
+                ->whereHas('detalle.venta', fn ($venta) => $venta->where('estado', '!=', 'anulada'))
+                ->with('detalle.venta.cliente')
+                ->orderByDesc('id'),
             'unidadesProduccion.componentes',
             'unidadesProduccion.controlesCalidad',
             'unidadesProduccion.avances.etapa',
         ]);
+
+        $plan->loadMissing('avances.etapa');
+        $planProducto->setRelation('plan', $plan);
+        $estimador = new \App\Services\EstimadorEntrega();
+        foreach ($planProducto->unidadesProduccion as $unidadPlan) {
+            $unidadPlan->setRelation('planProducto', $planProducto);
+            $unidadPlan->setAttribute('estimacion_entrega', $estimador->calcular($unidadPlan));
+        }
 
         $controlesFamiliaIds = FamiliaControlCalidad::query()
             ->where(
@@ -339,12 +376,32 @@ class PlanProduccionController extends Controller
             'avances.etapa',
         ]);
 
+        $asignacionVenta = $unidad->asignaciones()
+            ->whereIn('estado', ['reservada', 'asignada'])
+            ->whereHas('detalle.venta', fn ($query) => $query->where('estado', '!=', 'anulada'))
+            ->with([
+                'detalle.producto',
+                'detalle.venta.cliente',
+                'detalle.venta.detalles.producto.tipo',
+            ])
+            ->orderByDesc('id')
+            ->first();
+        $ventaVinculada = $asignacionVenta?->detalle?->venta;
+        $otrosDetallesVenta = $ventaVinculada
+            ? $ventaVinculada->detalles->reject(fn ($detalle) => $detalle->id === $asignacionVenta->venta_detalle_id)
+            : collect();
+
+        $unidad->setAttribute('estimacion_entrega', (new \App\Services\EstimadorEntrega())->calcular($unidad));
+
         return view(
             'produccion.planes.unidad-show',
             compact(
                 'plan',
                 'planProducto',
-                'unidad'
+                'unidad',
+                'asignacionVenta',
+                'ventaVinculada',
+                'otrosDetallesVenta'
             )
         );
     }
@@ -412,6 +469,8 @@ class PlanProduccionController extends Controller
                 )->ignore($unidad->id),
             ],
 
+            'serie' => ['sometimes', 'nullable', 'string', 'max:100'],
+
             'estado' => [
                 'required',
                 'string',
@@ -429,6 +488,8 @@ class PlanProduccionController extends Controller
                 'string',
             ],
         ]);
+
+        abort_if($datos['estado'] === 'entregada',422,'Registrá la entrega desde el control de salida de la unidad.');
 
         $unidad->update($datos);
 

@@ -40,8 +40,7 @@
             </div>
 
             <div class="alert alert-info">
-                <strong>Cliente y serie:</strong>
-                estos datos serán asignados posteriormente desde Ventas.
+                El cliente se muestra desde la venta activa. La serie se carga manualmente en esta unidad.
             </div>
 
             <form
@@ -66,6 +65,12 @@
                             value="{{ old('chasis', $unidad->chasis) }}"
                             maxlength="100"
                         >
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="serie" class="form-label">Serie</label>
+                        <input type="text" name="serie" id="serie" class="form-control"
+                            value="{{ old('serie', $unidad->serie) }}" maxlength="100">
                     </div>
 
                     <div class="col-md-4">

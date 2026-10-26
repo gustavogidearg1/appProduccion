@@ -9,7 +9,7 @@
                 gap-3 mb-4">
 
             <div>
-                <h1 class="mb-1">Unidades de producción</h1>
+                <h1 class="mb-1">Plan de producción #{{ $plan->numero }}</h1>
 
                 <p class="text-muted mb-0">
                     Plan #{{ $plan->numero }} -
@@ -17,9 +17,64 @@
                 </p>
             </div>
 
-            <a href="{{ route('planes.show', $plan) }}" class="btn btn-outline-secondary">
-                Volver al plan
-            </a>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ route('planes.index') }}" class="btn btn-outline-secondary">
+                    Volver a planes
+                </a>
+                <a href="{{ route('demoras.index', $plan) }}" class="btn btn-outline-warning">Demoras del plan</a>
+                <a href="{{ route('planes.avances', $plan) }}" class="btn btn-success">
+                    Avances del plan
+                </a>
+            </div>
+        </div>
+
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if (session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4"><strong>Estado del plan</strong><div><span class="badge bg-primary">{{ ucfirst(str_replace('_', ' ', $plan->estado)) }}</span></div></div>
+                    <div class="col-md-4"><strong>Fecha planificada</strong><div>{{ $plan->fecha_planificada?->format('d/m/Y') ?? '-' }}</div></div>
+                    <div class="col-md-4"><strong>Finalización planificada</strong><div>{{ $plan->fecha_fin_planificada?->format('d/m/Y') ?? '-' }}</div></div>
+                    <div class="col-12"><strong>Observaciones generales</strong><div style="white-space: pre-line">{{ $plan->observaciones ?: '-' }}</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header"><h2 class="h5 mb-0">Productos del plan</h2></div>
+            <div class="card-body">
+                @if ($plan->planProductos->count() > 1)
+                    <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Productos del plan">
+                        @foreach ($plan->planProductos as $linea)
+                            <a href="{{ route('planes.productos.unidades', [$plan, $linea]) }}"
+                               class="btn btn-sm {{ $linea->id === $planProducto->id ? 'btn-primary' : 'btn-outline-primary' }}"
+                               @if ($linea->id === $planProducto->id) aria-current="page" @endif>
+                                {{ $linea->producto?->nombre ?? 'Producto no disponible' }}
+                                ({{ $linea->unidades_produccion_count }} unidades)
+                            </a>
+                        @endforeach
+                    </nav>
+                @endif
+                <div class="row g-3">
+                    <div class="col-md-6"><strong>Producto seleccionado</strong><div>{{ $planProducto->producto?->nombre ?? 'Producto no disponible' }}</div></div>
+                    <div class="col-md-2"><strong>Código</strong><div>{{ $planProducto->producto?->codigo ?? '-' }}</div></div>
+                    <div class="col-md-2"><strong>UE producción</strong><div>{{ $planProducto->producto?->ue_produccion ?? '-' }}</div></div>
+                    <div class="col-md-2"><strong>Cantidad planificada</strong><div>{{ number_format((float) $planProducto->cantidad, 2, ',', '.') }}</div></div>
+                    <div class="col-12"><strong>Observaciones del producto</strong><div style="white-space: pre-line">{{ $planProducto->observaciones ?: '-' }}</div></div>
+                </div>
+                @if ($planProducto->unidadesProduccion->isEmpty())
+                    <form method="POST" action="{{ route('planes.productos.generar-unidades', [$plan, $planProducto]) }}" class="mt-3">
+                        @csrf
+                        <button type="submit" class="btn btn-primary">Generar unidades</button>
+                    </form>
+                @endif
+            </div>
         </div>
 
         <div class="card shadow-sm">
@@ -39,6 +94,7 @@
                                 <th>Serie</th>
                                 <th>Cliente</th>
                                 <th>Estado</th>
+                                <th>Entrega estimada</th>
                                 <th>Color</th>
                                 <th>Observaciones</th>
                                 <th>Componentes</th>
@@ -50,6 +106,8 @@
                         <tbody>
                             @forelse ($planProducto->unidadesProduccion as $unidad)
                                 @php
+                                    $asignacionVenta = $unidad->asignaciones->first();
+                                    $ventaVinculada = $asignacionVenta?->detalle?->venta;
                                     $cantidadComponentes = $unidad->componentes?->count() ?? 0;
 
                                     $avanceActual = $unidad->avances
@@ -79,11 +137,17 @@
                                     </td>
 
                                     <td>
-                                        {{ $unidad->serie ?? '-' }}
+                                        {{ $unidad->serie ?: 'Sin cargar' }}
                                     </td>
 
                                     <td>
-                                        {{ $unidad->cliente?->nombre ?? '-' }}
+                                        {{ $ventaVinculada ? ($ventaVinculada->cliente?->nombre ?? 'Cliente no disponible') : ($unidad->cliente?->nombre ?? '-') }}
+                                        @if ($ventaVinculada)
+                                            <div class="small mt-1">
+                                                <a href="{{ route('ventas.show', $ventaVinculada) }}">Venta #{{ $ventaVinculada->id }}</a>
+                                                <span class="badge bg-success">{{ ucfirst($asignacionVenta->estado) }}</span>
+                                            </div>
+                                        @endif
                                     </td>
 
                                     <td>
@@ -110,6 +174,10 @@
                                         @endif
                                     </td>
 
+                                    <td>
+                                        {{ $unidad->estimacion_entrega['texto'] }}
+                                        @if ($unidad->estimacion_entrega['demora'])<div class="small text-warning-emphasis">Demora / previsión vencida</div>@endif
+                                    </td>
                                     <td>
                                         {{ $unidad->color ?? '-' }}
                                     </td>
@@ -157,6 +225,8 @@
                                                 Ficha
                                             </a>
 
+                                            <a href="{{ route('demoras.index', [$plan, 'unidad_id'=>$unidad->id]) }}" class="btn btn-sm btn-outline-warning">Demoras</a>
+                                            <a href="{{ route('entregas.index', $unidad) }}" class="btn btn-sm btn-outline-success">Entrega</a>
                                             @if ($unidad->estado !== 'entregada')
                                                 <a href="{{ route('planes.productos.unidades.edit', [$plan, $planProducto, $unidad]) }}"
                                                     class="btn btn-sm btn-warning">
@@ -181,7 +251,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center py-4 text-muted">
+                                    <td colspan="10" class="text-center py-4 text-muted">
                                         No hay unidades generadas.
                                     </td>
                                 </tr>

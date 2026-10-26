@@ -12,307 +12,419 @@ use App\Models\UnidadProduccion;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class VentaController extends Controller
 {
     public function index(Request $request)
-{
-    $filtros = [
-        'cliente_id' => $request->input('cliente_id'),
-        'producto_id' => $request->input('producto_id'),
-        'chasis' => $request->input('chasis'),
-        'estado' => $request->input('estado'),
-        'asignacion' => $request->input('asignacion'),
-        'fecha_desde' => $request->input('fecha_desde'),
-        'fecha_hasta' => $request->input('fecha_hasta'),
-    ];
+    {
+        $filtros = [
+            'cliente_id' => $request->input('cliente_id'),
+            'producto_id' => $request->input('producto_id'),
+            'chasis' => $request->input('chasis'),
+            'estado' => $request->input('estado'),
+            'asignacion' => $request->input('asignacion'),
+            'fecha_desde' => $request->input('fecha_desde'),
+            'fecha_hasta' => $request->input('fecha_hasta'),
+        ];
 
-    $clientes = Cliente::query()
-        ->orderBy('nombre')
-        ->get();
+        $clientes = Cliente::query()
+            ->orderBy('nombre')
+            ->get();
 
-    $productos = Producto::query()
-        ->with('tipo')
-        ->where('activo', true)
-        ->get()
-        ->sortBy(fn ($producto) => $this->ordenProducto($producto))
-        ->values();
+        $productos = Producto::query()
+            ->with('tipo')
+            ->where('activo', true)
+            ->get()
+            ->sortBy(fn($producto) => $this->ordenProducto($producto))
+            ->values();
 
-    $consulta = Venta::query()
-        ->with([
-            'cliente',
-            'detalles.producto.tipo',
-            'detalles.asignaciones.unidad',
-        ]);
+        $consulta = Venta::query()
+            ->with([
+                'cliente',
+                'detalles.producto.tipo',
+                'detalles.asignaciones.unidad',
+            ]);
 
-    if ($filtros['cliente_id']) {
-        $consulta->where('cliente_id', $filtros['cliente_id']);
-    }
+        if ($filtros['cliente_id']) {
+            $consulta->where('cliente_id', $filtros['cliente_id']);
+        }
 
-    if ($filtros['producto_id']) {
-        $consulta->whereHas('detalles', function ($query) use ($filtros) {
-            $query->where('producto_id', $filtros['producto_id']);
-        });
-    }
+        if ($filtros['producto_id']) {
+            $consulta->whereHas('detalles', function ($query) use ($filtros) {
+                $query->where('producto_id', $filtros['producto_id']);
+            });
+        }
 
-    if ($filtros['chasis']) {
-        $consulta->whereHas(
-            'detalles.asignaciones.unidad',
-            function ($query) use ($filtros) {
-                $query->where(
-                    'chasis',
-                    'like',
-                    '%' . $filtros['chasis'] . '%'
-                );
-            }
-        );
-    }
+        if ($filtros['chasis']) {
+            $consulta->whereHas(
+                'detalles.asignaciones.unidad',
+                function ($query) use ($filtros) {
+                    $query->where(
+                        'chasis',
+                        'like',
+                        '%' . $filtros['chasis'] . '%'
+                    );
+                }
+            );
+        }
 
-    if ($filtros['estado']) {
-        $consulta->where('estado', $filtros['estado']);
-    }
+        if ($filtros['estado']) {
+            $consulta->where('estado', $filtros['estado']);
+        }
 
-    if ($filtros['fecha_desde']) {
-        $consulta->whereDate(
-            'fecha',
-            '>=',
-            $filtros['fecha_desde']
-        );
-    }
+        if ($filtros['fecha_desde']) {
+            $consulta->whereDate(
+                'fecha',
+                '>=',
+                $filtros['fecha_desde']
+            );
+        }
 
-    if ($filtros['fecha_hasta']) {
-        $consulta->whereDate(
-            'fecha',
-            '<=',
-            $filtros['fecha_hasta']
-        );
-    }
+        if ($filtros['fecha_hasta']) {
+            $consulta->whereDate(
+                'fecha',
+                '<=',
+                $filtros['fecha_hasta']
+            );
+        }
 
-    if ($filtros['asignacion'] === 'sin_asignar') {
-        $consulta->whereDoesntHave(
-            'detalles.asignaciones',
-            function ($query) {
-                $query->whereIn(
-                    'estado',
-                    ['reservada', 'asignada']
-                );
-            }
-        );
-    }
+        if ($filtros['asignacion'] === 'sin_asignar') {
+            $consulta->whereDoesntHave(
+                'detalles.asignaciones',
+                function ($query) {
+                    $query->whereIn(
+                        'estado',
+                        ['reservada', 'asignada']
+                    );
+                }
+            );
+        }
 
-    if (in_array($filtros['asignacion'], ['reservada', 'asignada'])) {
-        $consulta->whereHas(
-            'detalles.asignaciones',
-            function ($query) use ($filtros) {
-                $query->where(
-                    'estado',
-                    $filtros['asignacion']
-                );
-            }
-        );
-    }
+        if (in_array($filtros['asignacion'], ['reservada', 'asignada'])) {
+            $consulta->whereHas(
+                'detalles.asignaciones',
+                function ($query) use ($filtros) {
+                    $query->where(
+                        'estado',
+                        $filtros['asignacion']
+                    );
+                }
+            );
+        }
 
-    $ventas = $consulta
-        ->orderByDesc('fecha')
-        ->orderByDesc('id')
-        ->paginate(20)
-        ->withQueryString();
+        $ventas = $consulta
+            ->orderByDesc('fecha')
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
 
-    foreach ($ventas as $venta) {
-        $venta->setRelation(
-            'detalles',
-            $venta->detalles
-                ->sortBy(fn ($detalle) =>
-                    $this->ordenProducto($detalle->producto)
-                )
-                ->values()
-        );
-    }
+        foreach ($ventas as $venta) {
+            $venta->setRelation(
+                'detalles',
+                $venta->detalles
+                    ->sortBy(
+                        fn($detalle) =>
+                        $this->ordenProducto($detalle->producto)
+                    )
+                    ->values()
+            );
+        }
 
-$familias = Familia::query()
-    ->orderBy('nombre')
-    ->get();
+        $familias = Familia::query()
+            ->orderBy('nombre')
+            ->get();
 
-$filtrosDisponibilidad = [
-    'familia_id' => $request->input('familia_id'),
-    'producto_id' => $request->input('disponibilidad_producto_id'),
-];
+        $filtrosDisponibilidad = [
+            'familia_id' => $request->input('familia_id'),
+            'producto_id' => $request->input('disponibilidad_producto_id'),
+        ];
 
-$productosDisponibles = Producto::query()
-    ->with(['familia', 'tipo'])
-    ->where('activo', true)
-    ->when(
-        $filtrosDisponibilidad['familia_id'],
-        fn ($query, $familiaId) =>
-            $query->where('familia_id', $familiaId)
-    )
-    ->when(
-        $filtrosDisponibilidad['producto_id'],
-        fn ($query, $productoId) =>
-            $query->whereKey($productoId)
-    )
-    ->orderBy('nombre')
-    ->get();
+        $productosDisponibles = Producto::query()
+            ->with(['familia', 'tipo'])
+            ->where('activo', true)
+            ->when(
+                $filtrosDisponibilidad['familia_id'],
+                fn($query, $familiaId) =>
+                $query->where('familia_id', $familiaId)
+            )
+            ->when(
+                $filtrosDisponibilidad['producto_id'],
+                fn($query, $productoId) =>
+                $query->whereKey($productoId)
+            )
+            ->orderBy('nombre')
+            ->get();
 
-$productoIdsDisponibles = $productosDisponibles
-    ->pluck('id')
-    ->map(fn ($id) => (int) $id)
-    ->all();
+        $productoIdsDisponibles = $productosDisponibles
+            ->pluck('id')
+            ->map(fn($id) => (int) $id)
+            ->all();
 
-$unidadesDisponibles = UnidadProduccion::query()
-    ->with([
-        'planProducto.producto.familia',
-        'planProducto.producto.tipo',
-        'avances.etapa',
-        'asignaciones',
-    ])
-    ->whereDoesntHave('asignaciones', function ($query) {
-        $query->whereIn('estado', ['reservada', 'asignada']);
-    })
-    ->when(
-        count($productoIdsDisponibles) > 0,
-        fn ($query) =>
-            $query->whereHas(
-                'planProducto',
-                fn ($subQuery) =>
+        $unidadesDisponibles = UnidadProduccion::query()
+            ->whereNotIn('estado', ['entregada', 'cancelada'])
+            ->whereDoesntHave('avances', fn ($q) => $q->where('estado', 'completada')->whereHas('etapa', fn ($e) => $e->where('codigo', 'ENTREGADO')))
+            ->with([
+                'planProducto.plan.avances.etapa',
+                'planProducto.producto.familia',
+                'planProducto.producto.tipo',
+                'avances.etapa',
+                'asignaciones',
+            ])
+            ->whereDoesntHave('asignaciones', function ($query) {
+                $query->whereIn('estado', ['reservada', 'asignada']);
+            })
+            ->when(
+                count($productoIdsDisponibles) > 0,
+                fn($query) =>
+                $query->whereHas(
+                    'planProducto',
+                    fn($subQuery) =>
                     $subQuery->whereIn(
                         'producto_id',
                         $productoIdsDisponibles
                     )
-            ),
-        fn ($query) =>
-            $query->whereRaw('1 = 0')
-    )
-    ->get()
-    ->sortBy(function ($unidad) {
-        return $this->ordenProducto(
-            $unidad->planProducto?->producto
-        );
-    })
-    ->values();
+                ),
+                fn($query) =>
+                $query->whereRaw('1 = 0')
+            )
+            ->get()
+            ->sortBy(function ($unidad) {
+                return $this->ordenProducto(
+                    $unidad->planProducto?->producto
+                );
+            })
+            ->values();
 
-   return view(
-    'ventas.index',
-    compact(
-        'ventas',
-        'clientes',
-        'productos',
-        'filtros',
-        'familias',
-        'productosDisponibles',
-        'unidadesDisponibles',
-        'filtrosDisponibilidad'
-    )
-);
-}
-
-    public function create(Request $request)
-{
-    $clientes = Cliente::query()
-        ->orderBy('nombre')
-        ->get();
-
-    $productos = Producto::query()
-        ->where('activo', true)
-        ->orderBy('nombre')
-        ->get();
-
-    $productoSeleccionadoId = $request->input('producto_id');
-
-    return view(
-        'ventas.create',
-        compact(
-            'clientes',
-            'productos',
-            'productoSeleccionadoId'
-        )
-    );
-}
-
-    public function store(Request $request)
-{
-    $datos = $request->validate([
-        'cliente_id' => [
-            'required',
-            'integer',
-            'exists:clientes,id',
-        ],
-
-        'fecha' => [
-            'required',
-            'date',
-        ],
-
-        'estado' => [
-            'required',
-            'string',
-            'in:borrador,confirmada,anulada',
-        ],
-
-        'observaciones' => [
-            'nullable',
-            'string',
-        ],
-
-        'detalles' => [
-            'required',
-            'array',
-            'min:1',
-        ],
-
-        'detalles.*.producto_id' => [
-            'required',
-            'integer',
-        ],
-
-        'detalles.*.cantidad' => [
-            'required',
-            'numeric',
-            'min:0.01',
-        ],
-
-        'detalles.*.precio_unitario' => [
-            'required',
-            'numeric',
-            'min:0',
-        ],
-    ]);
-
-    DB::transaction(function () use ($datos) {
-        $total = 0;
-
-        $venta = Venta::create([
-            'cliente_id' => $datos['cliente_id'],
-            'fecha' => $datos['fecha'],
-            'estado' => $datos['estado'],
-            'observaciones' => $datos['observaciones'] ?? null,
-            'total' => 0,
-        ]);
-
-        foreach ($datos['detalles'] as $detalle) {
-            $cantidad = (float) $detalle['cantidad'];
-            $precio = (float) $detalle['precio_unitario'];
-            $subtotal = $cantidad * $precio;
-
-            $venta->detalles()->create([
-                'producto_id' => $detalle['producto_id'],
-                'cantidad' => $cantidad,
-                'precio_unitario' => $precio,
-                'subtotal' => $subtotal,
-            ]);
-
-            $total += $subtotal;
+        $estimador = new \App\Services\EstimadorEntrega();
+        foreach ($unidadesDisponibles as $unidadDisponible) {
+            $unidadDisponible->setAttribute('estimacion_entrega', $estimador->calcular($unidadDisponible));
         }
 
-        $venta->update([
-            'total' => $total,
-        ]);
-    });
+        return view(
+            'ventas.index',
+            compact(
+                'ventas',
+                'clientes',
+                'productos',
+                'filtros',
+                'familias',
+                'productosDisponibles',
+                'unidadesDisponibles',
+                'filtrosDisponibilidad'
+            )
+        );
+    }
 
-    return redirect()
-        ->route('ventas.index')
-        ->with('success', 'Venta creada correctamente.');
-}
+    public function create(Request $request)
+    {
+        $clientes = Cliente::query()
+            ->orderBy('nombre')
+            ->get();
+
+        $productos = Producto::query()
+            ->where('activo', true)
+            ->with('tipo')
+            ->orderBy('nombre')
+            ->get();
+
+        $request->validate([
+            'producto_id' => ['nullable', 'integer'],
+            'unidad_id' => ['nullable', 'integer'],
+        ]);
+
+        $productoSeleccionado = null;
+        $unidadSeleccionada = null;
+
+        if ($request->filled('producto_id')) {
+            $productoSeleccionado = $productos
+                ->firstWhere('id', (int) $request->producto_id);
+        }
+
+        if ($request->filled('unidad_id')) {
+            $unidadSeleccionada = UnidadProduccion::with('planProducto')
+                ->find($request->unidad_id);
+
+            if (
+                !$unidadSeleccionada ||
+                !$productoSeleccionado ||
+                $unidadSeleccionada->planProducto?->producto_id !==
+                $productoSeleccionado->id
+            ) {
+                abort(404);
+            }
+        }
+
+        if ($unidadSeleccionada) {
+            abort_if(in_array($unidadSeleccionada->estado, ['entregada','cancelada']) || $unidadSeleccionada->avances()->where('estado','completada')->whereHas('etapa',fn($q)=>$q->where('codigo','ENTREGADO'))->exists(),422,'La unidad no está disponible.');
+        }
+
+        $detallesIniciales = old('detalles', [[
+            'producto_id' => $productoSeleccionado?->id,
+            'unidad_produccion_id' => $unidadSeleccionada?->id,
+            'cantidad' => 1,
+            'precio_unitario' => '',
+        ]]);
+        $unidadesFormulario = UnidadProduccion::query()
+            ->whereIn('id', collect($detallesIniciales)->pluck('unidad_produccion_id')->filter())
+            ->get()->keyBy('id');
+
+        return view('ventas.create', compact(
+            'clientes',
+            'productos',
+            'productoSeleccionado',
+            'unidadSeleccionada',
+            'detallesIniciales',
+            'unidadesFormulario'
+        ));
+    }
+
+    public function store(Request $request)
+    {
+        $datos = $request->validate([
+            'cliente_id' => [
+                'required',
+                'integer',
+                'exists:clientes,id',
+            ],
+
+            'fecha' => [
+                'required',
+                'date',
+            ],
+
+            'estado' => [
+                'required',
+                'string',
+                'in:borrador,confirmada,entregada,anulada',
+            ],
+
+            'observaciones' => [
+                'nullable',
+                'string',
+            ],
+
+            'detalles' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+
+            'detalles.*.producto_id' => [
+                'required',
+                'integer',
+                Rule::exists(Producto::class, 'id')->where('activo', true),
+            ],
+
+            'detalles.*.unidad_produccion_id' => [
+                'nullable',
+                'integer',
+                'distinct',
+                Rule::exists(UnidadProduccion::class, 'id'),
+            ],
+
+            'detalles.*.cantidad' => [
+                'required',
+                'numeric',
+                'min:0.01',
+            ],
+
+            'detalles.*.precio_unitario' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
+        ]);
+
+        $venta = DB::transaction(function () use ($datos) {
+            $usuarioId = $this->usuarioIdValido();
+            // Lock units in a stable order before checking active reservations.
+            $unidades = UnidadProduccion::query()
+                ->whereIn('id', collect($datos['detalles'])->pluck('unidad_produccion_id')->filter())
+                ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $total = 0;
+
+            $venta = Venta::create([
+                'cliente_id' => $datos['cliente_id'],
+                'fecha' => $datos['fecha'],
+                'estado' => $datos['estado'],
+                'observaciones' => $datos['observaciones'] ?? null,
+                'total' => 0,
+            ]);
+
+            foreach ($datos['detalles'] as $indice => $detalle) {
+                $cantidad = (float) $detalle['cantidad'];
+                $precio = (float) $detalle['precio_unitario'];
+                $subtotal = $cantidad * $precio;
+
+                $unidad = null;
+                if (!empty($detalle['unidad_produccion_id'])) {
+                    $unidad = $unidades->get($detalle['unidad_produccion_id']);
+                    $error = null;
+                    if (!$unidad || (int) $unidad->planProducto?->producto_id !== (int) $detalle['producto_id']) {
+                        $error = 'El chasis no corresponde al producto seleccionado.';
+                    } elseif (in_array($unidad->estado, ['entregada','cancelada']) || $unidad->avances()->where('estado','completada')->whereHas('etapa',fn($q)=>$q->where('codigo','ENTREGADO'))->exists()) {
+                        $error = 'La unidad no está disponible para vender.';
+                    } elseif ($cantidad !== 1.0) {
+                        $error = 'Una unidad concreta debe venderse con cantidad 1.';
+                    } elseif ($datos['estado'] === 'anulada') {
+                        $error = 'No se puede reservar un chasis en una venta anulada.';
+                    } elseif ($unidad->asignaciones()->whereIn('estado', ['reservada', 'asignada'])->lockForUpdate()->first()) {
+                        $error = 'El chasis ya fue reservado o asignado. Seleccioná otro.';
+                    }
+                    if ($error) {
+                        throw ValidationException::withMessages([
+                            "detalles.{$indice}.unidad_produccion_id" => $error,
+                        ]);
+                    }
+                }
+
+                $ventaDetalle = $venta->detalles()->create([
+                    'producto_id' => $detalle['producto_id'],
+                    'cantidad' => $cantidad,
+                    'precio_unitario' => $precio,
+                    'subtotal' => $subtotal,
+                ]);
+
+                if ($unidad) {
+                    VentaAsignacion::create([
+                        'venta_detalle_id' => $ventaDetalle->id,
+                        'unidad_produccion_id' => $unidad->id,
+                        'estado' => 'reservada',
+                        'fecha_reserva' => now(),
+                        'user_id' => $usuarioId,
+                        'observaciones' => null,
+                    ]);
+                    $venta->historial()->create([
+                        'user_id' => $usuarioId,
+                        'accion' => 'unidad_asignada',
+                        'datos' => [
+                            'venta_detalle_id' => $ventaDetalle->id,
+                            'unidad_produccion_id' => $unidad->id,
+                            'chasis' => $unidad->chasis,
+                        ],
+                    ]);
+                }
+
+                $total += $subtotal;
+            }
+
+            $venta->update([
+                'total' => $total,
+            ]);
+            $venta->historial()->create([
+                'user_id' => $usuarioId,
+                'accion' => 'venta_creada',
+                'datos' => ['total' => $total, 'estado' => $venta->estado],
+            ]);
+            return $venta;
+        });
+
+        return redirect()
+            ->route('ventas.show', $venta)
+            ->with('success', 'Venta creada correctamente.');
+    }
 
     public function show(Venta $venta)
     {
@@ -325,7 +437,7 @@ $unidadesDisponibles = UnidadProduccion::query()
         $venta->setRelation(
             'detalles',
             $venta->detalles
-                ->sortBy(fn ($detalle) => $this->ordenProducto($detalle->producto))
+                ->sortBy(fn($detalle) => $this->ordenProducto($detalle->producto))
                 ->values()
         );
 
@@ -345,7 +457,7 @@ $unidadesDisponibles = UnidadProduccion::query()
         $venta->setRelation(
             'detalles',
             $venta->detalles
-                ->sortBy(fn ($detalle) => $this->ordenProducto($detalle->producto))
+                ->sortBy(fn($detalle) => $this->ordenProducto($detalle->producto))
                 ->values()
         );
 
@@ -362,7 +474,7 @@ $unidadesDisponibles = UnidadProduccion::query()
                 'nombre',
                 'tipo_id',
             ])
-            ->sortBy(fn ($producto) => $this->ordenProducto($producto))
+            ->sortBy(fn($producto) => $this->ordenProducto($producto))
             ->values();
 
         return view(
@@ -390,6 +502,8 @@ $unidadesDisponibles = UnidadProduccion::query()
             'nuevos_productos.*.cantidad' => ['required', 'numeric', 'min:0.01'],
             'nuevos_productos.*.precio_unitario' => ['required', 'numeric', 'min:0'],
         ]);
+
+        abort_if($datos['estado'] === 'anulada',422,'Para anular, usá el botón Anular venta y conservar la liberación e historial.');
 
         DB::transaction(function () use ($datos, $venta) {
             $venta->update([
@@ -471,6 +585,9 @@ $unidadesDisponibles = UnidadProduccion::query()
         }
 
         DB::transaction(function () use ($venta) {
+            $venta = Venta::whereKey($venta->id)->lockForUpdate()->firstOrFail();
+            abort_if($venta->detalles()->whereHas('asignaciones.unidad',fn($q)=>$q->where('estado','entregada'))->exists(),422,'No se puede anular una venta con unidades entregadas.');
+
             $venta->update([
                 'estado' => 'anulada',
             ]);
@@ -478,7 +595,7 @@ $unidadesDisponibles = UnidadProduccion::query()
             VentaAsignacion::query()
                 ->whereHas(
                     'detalle',
-                    fn ($query) => $query->where('venta_id', $venta->id)
+                    fn($query) => $query->where('venta_id', $venta->id)
                 )
                 ->whereIn('estado', ['reservada', 'asignada'])
                 ->update([

@@ -19,6 +19,8 @@ class VentaAsignacionController extends Controller
         ]);
 
         $unidades = UnidadProduccion::query()
+            ->whereNotIn('estado',['entregada','cancelada'])
+            ->whereDoesntHave('avances',fn($q)=>$q->where('estado','completada')->whereHas('etapa',fn($e)=>$e->where('codigo','ENTREGADO')))
             ->whereHas(
                 'planProducto',
                 function ($query) use ($ventaDetalle) {
@@ -84,11 +86,25 @@ class VentaAsignacionController extends Controller
             $ventaDetalle,
             $usuarioId
         ) {
+            $ventaDetalle = VentaDetalle::query()->whereKey($ventaDetalle->id)
+                ->lockForUpdate()->firstOrFail();
+            abort_if($ventaDetalle->venta->estado === 'anulada', 422, 'No se puede reservar en una venta anulada.');
+            abort_if(
+                $ventaDetalle->asignaciones()->whereIn('estado', ['reservada', 'asignada'])->count() + 1 > (float) $ventaDetalle->cantidad,
+                422,
+                'El detalle ya tiene todas sus unidades reservadas.'
+            );
             $unidad = UnidadProduccion::query()
                 ->whereKey($datos['unidad_produccion_id'])
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            abort_if(
+                (int) $unidad->planProducto?->producto_id !== (int) $ventaDetalle->producto_id,
+                422,
+                'El chasis no corresponde al producto de la venta.'
+            );
+            abort_if(in_array($unidad->estado,['entregada','cancelada']) || $unidad->avances()->where('estado','completada')->whereHas('etapa',fn($q)=>$q->where('codigo','ENTREGADO'))->exists(),422,'La unidad ya no está disponible.');
             $yaAsignada = VentaAsignacion::query()
                 ->where(
                     'unidad_produccion_id',
@@ -98,7 +114,7 @@ class VentaAsignacionController extends Controller
                     'estado',
                     ['reservada', 'asignada']
                 )
-                ->exists();
+                ->lockForUpdate()->first();
 
             if ($yaAsignada) {
                 abort(

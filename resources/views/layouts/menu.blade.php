@@ -101,3 +101,8 @@
     </a>
 
 </nav>
+
+<h6 class="text-uppercase text-warning mt-4 mb-3">Planificación</h6>
+<nav class="nav flex-column gap-2">
+    <a href="{{ route('plazos.index') }}" class="nav-link text-white rounded {{ request()->routeIs('plazos.*') ? 'bg-warning text-dark' : '' }}">Plazos y calendario</a>
+</nav>

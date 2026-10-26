@@ -14,6 +14,7 @@
             </p>
         </div>
 
+        <a href="{{ route('entregas.index',$unidad) }}" class="btn btn-success">Control de entrega y fotos</a>
         <a href="{{ route('planes.productos.unidades', [$plan, $planProducto]) }}"
            class="btn btn-outline-secondary">
             Volver

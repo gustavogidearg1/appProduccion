@@ -52,6 +52,8 @@ class AvanceProduccionController extends Controller
         EtapaProduccion $etapa
     ) {
         $this->validarRelaciones($plan, $planProducto, $unidad);
+        if ($etapa->codigo === 'ENTREGADO') return redirect()->route('entregas.index',$unidad);
+
 
         if ($etapa->alcance !== 'unidad' || !$etapa->activo) {
             abort(404);
@@ -97,17 +99,7 @@ class AvanceProduccionController extends Controller
                 'iniciado_por' => auth()->id(),
             ]);
 
-            if ($etapa->codigo === 'OK_CALIDAD') {
-                $unidad->update([
-                    'estado' => 'terminada',
-                ]);
-            }
 
-            if ($etapa->codigo === 'ENTREGADO') {
-                $unidad->update([
-                    'estado' => 'entregada',
-                ]);
-            }
         }
 
         return back()->with(
@@ -124,6 +116,8 @@ class AvanceProduccionController extends Controller
         EtapaProduccion $etapa
     ) {
         $this->validarRelaciones($plan, $planProducto, $unidad);
+        if ($etapa->codigo === 'ENTREGADO') return redirect()->route('entregas.index',$unidad);
+
 
         if ($etapa->alcance !== 'unidad' || !$etapa->activo) {
             abort(404);
@@ -164,6 +158,8 @@ class AvanceProduccionController extends Controller
             'finalizado_por' => auth()->id(),
             'observaciones' => $request->input('observaciones'),
         ]);
+
+        if ($etapa->codigo === 'OK_CALIDAD') $unidad->update(['estado'=>'terminada']);
 
 
         return back()->with(

@@ -18,6 +18,10 @@
             </a>
         </div>
 
+        @if (session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
+        @endif
+
         @if (session('success'))
             <div class="alert alert-success">
                 {{ session('success') }}
@@ -120,6 +124,7 @@
                                 <th>Plan</th>
                                 <th>Productos</th>
                                 <th>Estado</th>
+                                <th>Ventas / asignación</th>
                                 <th>Fecha planificada</th>
                                 <th>Fin estimado</th>
                                 <th>Acciones</th>
@@ -142,6 +147,11 @@
                                                     (Cantidad:
                                                     {{ number_format((float) $planProducto->cantidad, 2, ',', '.') }})
                                                 </small>
+                                                <div class="small text-muted">
+                                                    Vinculadas a ventas: {{ $planProducto->resumen_ventas['total'] }}
+                                                    · Reservadas: {{ $planProducto->resumen_ventas['reservadas'] }}
+                                                    · Asignadas: {{ $planProducto->resumen_ventas['asignadas'] }}
+                                                </div>
                                             </div>
                                         @endforeach
                                     </td>
@@ -181,6 +191,12 @@
                                     </td>
 
                                     <td>
+                                        <div class="fw-semibold mb-1">Vinculadas a ventas: {{ $plan->resumen_ventas['total'] }}</div>
+                                        <span class="badge bg-info text-dark">Reservadas: {{ $plan->resumen_ventas['reservadas'] }}</span>
+                                        <span class="badge bg-success">Asignadas: {{ $plan->resumen_ventas['asignadas'] }}</span>
+                                    </td>
+
+                                    <td>
                                         {{ $plan->fecha_planificada?->format('d/m/Y') ?? '-' }}
                                     </td>
 
@@ -189,14 +205,14 @@
                                     </td>
 
                                     <td>
-                                        <a href="{{ route('planes.show', $plan) }}" class="btn btn-sm btn-primary">
+                                        <a href="{{ ($plan->planProductos->isNotEmpty() ? route('planes.productos.unidades', [$plan, $plan->planProductos->sortBy('id')->first()]) : route('planes.show', $plan)) }}" class="btn btn-sm btn-primary">
                                             Ver
                                         </a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
+                                    <td colspan="7" class="text-center text-muted py-4">
                                         No hay planes que coincidan con los filtros.
                                     </td>
                                 </tr>
