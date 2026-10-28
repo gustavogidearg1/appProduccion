@@ -164,6 +164,7 @@ class VentaController extends Controller
 
         $unidadesDisponibles = UnidadProduccion::query()
             ->whereNotIn('estado', ['entregada', 'cancelada'])
+            ->whereHas('planProducto.plan',fn($q)=>$q->where('estado','!=','cancelado'))
             ->whereDoesntHave('avances', fn ($q) => $q->where('estado', 'completada')->whereHas('etapa', fn ($e) => $e->where('codigo', 'ENTREGADO')))
             ->with([
                 'planProducto.plan.avances.etapa',
@@ -225,7 +226,7 @@ class VentaController extends Controller
 
         $productos = Producto::query()
             ->where('activo', true)
-            ->with('tipo')
+            ->with(['tipo','familia'])
             ->orderBy('nombre')
             ->get();
 
@@ -257,6 +258,7 @@ class VentaController extends Controller
         }
 
         if ($unidadSeleccionada) {
+            abort_if($unidadSeleccionada->planProducto?->plan?->estado==='cancelado',422,'El plan está anulado.');
             abort_if(in_array($unidadSeleccionada->estado, ['entregada','cancelada']) || $unidadSeleccionada->avances()->where('estado','completada')->whereHas('etapa',fn($q)=>$q->where('codigo','ENTREGADO'))->exists(),422,'La unidad no está disponible.');
         }
 
@@ -269,6 +271,11 @@ class VentaController extends Controller
         $unidadesFormulario = UnidadProduccion::query()
             ->whereIn('id', collect($detallesIniciales)->pluck('unidad_produccion_id')->filter())
             ->get()->keyBy('id');
+
+        $estimador = new \App\Services\EstimadorEntrega();
+        foreach ($unidadesFormulario as $unidadFormulario) {
+            $unidadFormulario->setAttribute('estimacion_entrega', $estimador->calcular($unidadFormulario));
+        }
 
         return view('ventas.create', compact(
             'clientes',
@@ -364,6 +371,8 @@ class VentaController extends Controller
                     $error = null;
                     if (!$unidad || (int) $unidad->planProducto?->producto_id !== (int) $detalle['producto_id']) {
                         $error = 'El chasis no corresponde al producto seleccionado.';
+                    } elseif ($unidad->planProducto?->plan?->estado==='cancelado') {
+                        $error = 'El plan de esta unidad está anulado.';
                     } elseif (in_array($unidad->estado, ['entregada','cancelada']) || $unidad->avances()->where('estado','completada')->whereHas('etapa',fn($q)=>$q->where('codigo','ENTREGADO'))->exists()) {
                         $error = 'La unidad no está disponible para vender.';
                     } elseif ($cantidad !== 1.0) {
@@ -432,6 +441,7 @@ class VentaController extends Controller
             'cliente',
             'detalles.producto.tipo',
             'detalles.asignaciones.unidad.avances.etapa',
+            'detalles.asignaciones.unidad.planProducto.plan.avances.etapa',
         ]);
 
         $venta->setRelation(
@@ -440,6 +450,15 @@ class VentaController extends Controller
                 ->sortBy(fn($detalle) => $this->ordenProducto($detalle->producto))
                 ->values()
         );
+
+        $estimador = new \App\Services\EstimadorEntrega();
+        foreach ($venta->detalles as $detalleVenta) {
+            foreach ($detalleVenta->asignaciones as $asignacion) {
+                if ($asignacion->unidad && in_array($asignacion->estado, ['reservada', 'asignada'])) {
+                    $asignacion->unidad->setAttribute('estimacion_entrega', $estimador->calcular($asignacion->unidad));
+                }
+            }
+        }
 
         return view('ventas.show', compact('venta'));
     }
@@ -451,7 +470,8 @@ class VentaController extends Controller
         $venta->load([
             'cliente',
             'detalles.producto.tipo',
-            'detalles.asignaciones',
+            'detalles.asignaciones.unidad.avances.etapa',
+            'detalles.asignaciones.unidad.planProducto.plan.avances.etapa',
         ]);
 
         $venta->setRelation(
@@ -460,6 +480,15 @@ class VentaController extends Controller
                 ->sortBy(fn($detalle) => $this->ordenProducto($detalle->producto))
                 ->values()
         );
+
+        $estimador = new \App\Services\EstimadorEntrega();
+        foreach ($venta->detalles as $detalleVenta) {
+            foreach ($detalleVenta->asignaciones as $asignacion) {
+                if ($asignacion->unidad && in_array($asignacion->estado, ['reservada', 'asignada'])) {
+                    $asignacion->unidad->setAttribute('estimacion_entrega', $estimador->calcular($asignacion->unidad));
+                }
+            }
+        }
 
         $clientes = Cliente::query()
             ->orderBy('nombre')

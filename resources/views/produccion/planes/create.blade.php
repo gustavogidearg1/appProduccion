@@ -18,7 +18,7 @@
     <div class="card shadow-sm">
         <div class="card-body">
 
-            <form method="POST" action="{{ route('planes.store') }}">
+            <form id="crear-plan-form" method="POST" action="{{ route('planes.store') }}">
                 @csrf
 
                 <div class="row g-3 mb-4">
@@ -83,27 +83,18 @@
                                 <div class="col-md-6">
                                     <label class="form-label">Producto</label>
 
-                                    <select
-                                        name="producto_id[]"
-                                        class="form-select"
-                                        required
-                                    >
-                                        <option value="">Seleccioná un producto</option>
-
-                                        @foreach($productos as $producto)
-                                            <option
-                                                value="{{ $producto->id }}"
-                                                @selected((string) $productoSeleccionado === (string) $producto->id)
-                                            >
-                                                {{ $producto->codigo }} -
-                                                {{ $producto->nombre }}
-
-                                                @if(!is_null($producto->ue_produccion))
-                                                    | UE: {{ $producto->ue_produccion }}
-                                                @endif
-                                            </option>
-                                        @endforeach
-                                    </select>
+                                    @php
+                                        $productoFila = $productos->firstWhere('id', $productoSeleccionado);
+                                    @endphp
+                                    <input type="hidden" name="producto_id[]" class="producto-id" value="{{ $productoSeleccionado }}">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-control bg-light flex-grow-1 producto-resumen" style="width:auto;min-width:160px" aria-live="polite">
+                                            @if ($productoFila){{ $productoFila->codigo }} - {{ $productoFila->nombre }}@if ($productoFila->ue_produccion !== null) | UE: {{ $productoFila->ue_produccion }}@endif
+                                            @else Seleccioná un producto @endif
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary buscar-producto"><i class="bi bi-search me-1"></i>Buscar producto</button>
+                                    </div>
+                                    <div class="small text-danger error-producto" role="alert"></div>
                                 </div>
 
                                 <div class="col-md-2">
@@ -177,38 +168,50 @@
 
 </div>
 
+@include('components.buscador-productos', ['productos'=>$productos])
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const container = document.getElementById('productos-container');
-    const botonAgregar = document.getElementById('agregar-producto');
-
-    function crearFilaProducto() {
-        const fila = document.querySelector('.producto-row').cloneNode(true);
-
-        fila.querySelector('select').selectedIndex = 0;
+    function limpiarFila(fila) {
+        fila.querySelector('.producto-id').value = '';
+        fila.querySelector('.producto-resumen').textContent = 'Seleccioná un producto';
+        fila.querySelector('.error-producto').textContent = '';
         fila.querySelector('input[name="cantidad[]"]').value = 1;
         fila.querySelector('input[name="observaciones[]"]').value = '';
-
-        container.appendChild(fila);
     }
-
-    botonAgregar.addEventListener('click', function () {
-        crearFilaProducto();
+    function buscar(fila) {
+        const ids = [...container.querySelectorAll('.producto-row')].filter(otra => otra !== fila).map(otra => otra.querySelector('.producto-id').value).filter(Boolean);
+        window.buscadorProductos.abrir(fila, ids);
+    }
+    document.getElementById('agregar-producto').addEventListener('click', () => {
+        const fila = container.querySelector('.producto-row').cloneNode(true);
+        limpiarFila(fila);
+        container.appendChild(fila);
+        buscar(fila);
     });
-
-    container.addEventListener('click', function (event) {
-        if (!event.target.classList.contains('eliminar-producto')) {
-            return;
+    container.addEventListener('click', evento => {
+        const boton = evento.target.closest('button');
+        if (!boton) return;
+        const fila = boton.closest('.producto-row');
+        if (boton.classList.contains('buscar-producto')) buscar(fila);
+        if (boton.classList.contains('eliminar-producto')) {
+            if (container.querySelectorAll('.producto-row').length > 1) fila.remove();
+            else limpiarFila(fila);
         }
-
-        const filas = container.querySelectorAll('.producto-row');
-
-        if (filas.length > 1) {
-            event.target.closest('.producto-row').remove();
-        } else {
-            filas[0].querySelector('select').selectedIndex = 0;
-            filas[0].querySelector('input[name="cantidad[]"]').value = 1;
-            filas[0].querySelector('input[name="observaciones[]"]').value = '';
+    });
+    container.addEventListener('producto-seleccionado', evento => {
+        const fila = evento.target.closest('.producto-row');
+        const producto = evento.detail;
+        fila.querySelector('.producto-id').value = producto.id;
+        fila.querySelector('.producto-resumen').textContent = `${producto.codigo ? producto.codigo + ' - ' : ''}${producto.nombre}${producto.ue !== '' ? ' | UE: ' + producto.ue : ''}`;
+        fila.querySelector('.error-producto').textContent = '';
+    });
+    document.getElementById('crear-plan-form').addEventListener('submit', evento => {
+        const fila = [...container.querySelectorAll('.producto-row')].find(f => !f.querySelector('.producto-id').value);
+        if (fila) {
+            evento.preventDefault();
+            fila.querySelector('.error-producto').textContent = 'Seleccioná un producto antes de guardar.';
+            buscar(fila);
         }
     });
 });

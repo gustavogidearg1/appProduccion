@@ -150,8 +150,9 @@
 
                                     <td>
                                         <span class="badge bg-secondary">
-                                            {{ $estadoActual }}
+                                            {{ $estimacion['excluida'] ? $estimacion['texto'] : $estimacion['etapa'] }}
                                         </span>
+                                        @if ($estimacion['origen'] === 'plan')<div class="small text-muted">Etapa del plan</div>@endif
                                     </td>
 
                                     <td>
@@ -167,13 +168,7 @@
                                     </td>
 
                                     <td>
-                                        {{ $estimacion['texto'] }}
-                                        @if ($estimacion['demora'])
-                                            <div class="small text-warning-emphasis">Demora / previsión vencida</div>
-                                        @endif
-                                        @if ($estimacion['impacto'])
-                                            <div class="small text-muted">Incluye {{ $estimacion['impacto'] }} días hábiles de demora</div>
-                                        @endif
+                                        @include('planificacion.estimacion', ['estimacion'=>$estimacion])
                                     </td>
 
                                     <td>

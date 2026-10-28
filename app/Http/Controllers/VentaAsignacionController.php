@@ -20,6 +20,7 @@ class VentaAsignacionController extends Controller
 
         $unidades = UnidadProduccion::query()
             ->whereNotIn('estado',['entregada','cancelada'])
+            ->whereHas('planProducto.plan',fn($q)=>$q->where('estado','!=','cancelado'))
             ->whereDoesntHave('avances',fn($q)=>$q->where('estado','completada')->whereHas('etapa',fn($e)=>$e->where('codigo','ENTREGADO')))
             ->whereHas(
                 'planProducto',
@@ -32,6 +33,7 @@ class VentaAsignacionController extends Controller
             )
             ->with([
                 'planProducto.producto',
+                'planProducto.plan.avances.etapa',
                 'avances.etapa',
                 'asignaciones',
             ])
@@ -47,6 +49,11 @@ class VentaAsignacionController extends Controller
             ->orderBy('estado')
             ->orderBy('chasis')
             ->get();
+
+        $estimador = new \App\Services\EstimadorEntrega();
+        foreach ($unidades as $unidadDisponible) {
+            $unidadDisponible->setAttribute('estimacion_entrega', $estimador->calcular($unidadDisponible));
+        }
 
         return view(
             'ventas.asignar',
@@ -104,6 +111,7 @@ class VentaAsignacionController extends Controller
                 422,
                 'El chasis no corresponde al producto de la venta.'
             );
+            abort_if($unidad->planProducto?->plan?->estado==='cancelado',422,'El plan está anulado.');
             abort_if(in_array($unidad->estado,['entregada','cancelada']) || $unidad->avances()->where('estado','completada')->whereHas('etapa',fn($q)=>$q->where('codigo','ENTREGADO'))->exists(),422,'La unidad ya no está disponible.');
             $yaAsignada = VentaAsignacion::query()
                 ->where(

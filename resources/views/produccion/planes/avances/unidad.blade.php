@@ -121,6 +121,7 @@
                             </td>
 
                             <td>
+                                <a href="{{ route('avances.correccion.edit',[$plan,$planProducto,$unidad,$etapa]) }}" class="btn btn-sm btn-outline-warning mb-2">Corregir avance</a>
                                 @if (!$avance || $avance->estado === 'pendiente')
 
                                     @if ($puedeIniciar)
@@ -244,6 +245,7 @@
                             {{ $avance?->fecha_fin?->format('d/m/Y H:i') ?? '-' }}
                         </div>
 
+                        <a href="{{ route('avances.correccion.edit',[$plan,$planProducto,$unidad,$etapa]) }}" class="btn btn-outline-warning mb-2">Corregir avance</a>
                         @if (!$avance || $avance->estado === 'pendiente')
 
                             @if ($puedeIniciar)
@@ -299,5 +301,24 @@
 
     </div>
 
+<div class="card mt-4"><div class="card-header"><h2 class="h5 mb-0">Historial de correcciones</h2></div><div class="card-body">
+@forelse ($correcciones as $correccion)
+<details class="border rounded p-2 mb-2"><summary>{{ $correccion->created_at }} · {{ $correccion->etapa_nombre }} · {{ $correccion->responsable }}</summary>
+<p class="mt-2" style="white-space: pre-line">{{ $correccion->motivo }}</p>
+@php
+    $antes = json_decode($correccion->anterior,true);
+    $despues = json_decode($correccion->nuevo,true);
+@endphp
+<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Dato</th><th>Antes</th><th>Después</th></tr></thead><tbody>
+@foreach (['estado'=>'Estado','fecha_inicio'=>'Inicio real','fecha_fin'=>'Fin real','observaciones'=>'Observaciones'] as $campo=>$nombre)<tr><td>{{ $nombre }}</td><td>{{ $antes['etapa'][$campo] ?? '-' }}</td><td>{{ $despues['etapa'][$campo] ?? '-' }}</td></tr>@endforeach
+<tr><td>Estado de la unidad</td><td>{{ $antes['estado_unidad'] }}</td><td>{{ $despues['estado_unidad'] }}</td></tr>
+</tbody></table></div>
+@if (!empty($antes['posteriores']))<p>Se reiniciaron {{ count($antes['posteriores']) }} etapas posteriores. Valores anteriores:</p>
+@foreach ($antes['posteriores'] as $anterior)<div class="small">Etapa #{{ $anterior['etapa_id'] }} · {{ $anterior['estado'] }} · Inicio: {{ $anterior['fecha_inicio'] ?? '-' }} · Fin: {{ $anterior['fecha_fin'] ?? '-' }}</div>@endforeach
+@endif
+</details>
+@empty<p class="text-muted mb-0">No hay correcciones registradas.</p>@endforelse
+{{ $correcciones->links('pagination::bootstrap-5') }}
+</div></div>
 </div>
 @endsection

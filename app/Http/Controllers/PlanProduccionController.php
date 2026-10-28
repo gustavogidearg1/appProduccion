@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\EtapaProduccion;
 use App\Models\FamiliaControlCalidad;
+use App\Models\Familia;
 use App\Models\PlanProduccion;
 use App\Models\PlanProducto;
 use App\Models\Producto;
@@ -32,7 +33,11 @@ class PlanProduccionController extends Controller
             ->map(fn ($id) => (string) $id)
             ->all();
 
+        if (is_string($request->input('chasis'))) $request->merge(['chasis' => trim($request->input('chasis'))]);
         $filtros = $request->validate([
+            'familia_id' => ['nullable', 'integer', Rule::exists(Familia::class, 'id')],
+            'producto_id' => ['nullable', 'integer', Rule::exists(Producto::class, 'id')],
+            'chasis' => ['nullable', 'string', 'max:100'],
             'fecha_desde' => [
                 'nullable',
                 'date',
@@ -97,33 +102,32 @@ class PlanProduccionController extends Controller
             );
         }
 
-        if (!empty($filtros['etapa_id'])) {
-            if ($filtros['etapa_id'] === 'planificada') {
-                $consulta->whereHas(
-                    'planProductos.unidadesProduccion',
-                    function ($query) {
-                        $query
-                            ->where('estado', 'planificada')
-                            ->whereDoesntHave('avances');
-                    }
-                );
-            } elseif ($filtros['etapa_id'] === 'entregada') {
-                $consulta->whereHas(
-                    'planProductos.unidadesProduccion',
-                    function ($query) {
-                        $query->where('estado', 'entregada');
-                    }
-                );
-            } else {
-                $consulta->whereHas(
-                    'planProductos.unidadesProduccion.avances',
-                    function ($query) use ($filtros) {
-                        $query
-                            ->where('etapa_id', $filtros['etapa_id'])
-                            ->where('estado', 'en_proceso');
-                    }
-                );
+        // Los productos pertenecen a cotizador: primero resolvemos sus IDs allí.
+        $familias = Familia::orderBy('nombre')->get(['id','nombre']);
+        $productosFiltro = Producto::orderBy('nombre')->get(['id','nombre','familia_id']);
+        $filtraProducto = !empty($filtros['familia_id']) || !empty($filtros['producto_id']);
+        $productoIds = $productosFiltro->filter(fn ($producto) =>
+            (empty($filtros['familia_id']) || (int)$producto->familia_id === (int)$filtros['familia_id']) &&
+            (empty($filtros['producto_id']) || (int)$producto->id === (int)$filtros['producto_id'])
+        )->pluck('id')->all();
+        $filtrarUnidad = function ($query) use ($filtros) {
+            if (!empty($filtros['chasis'])) $query->where('chasis','like','%'.$filtros['chasis'].'%');
+            if (!empty($filtros['etapa_id'])) {
+                if ($filtros['etapa_id'] === 'planificada') {
+                    $query->where('estado','planificada')->whereDoesntHave('avances');
+                } elseif ($filtros['etapa_id'] === 'entregada') {
+                    $query->where('estado','entregada');
+                } else {
+                    $query->whereHas('avances',fn ($avance) => $avance->where('etapa_id',$filtros['etapa_id'])->where('estado','en_proceso'));
+                }
             }
+        };
+        $filtrarLinea = function ($query) use ($filtros, $filtraProducto, $productoIds, $filtrarUnidad) {
+            if ($filtraProducto) $query->whereIn('producto_id',$productoIds);
+            if (!empty($filtros['chasis']) || !empty($filtros['etapa_id'])) $query->whereHas('unidadesProduccion',$filtrarUnidad);
+        };
+        if ($filtraProducto || !empty($filtros['chasis']) || !empty($filtros['etapa_id'])) {
+            $consulta->whereHas('planProductos',$filtrarLinea);
         }
 
         $planes = $consulta
@@ -133,7 +137,10 @@ class PlanProduccionController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $destinos = PlanProducto::whereIn('plan_produccion_id',$planes->pluck('id'))->where($filtrarLinea)->orderBy('id')->get(['id','plan_produccion_id'])->groupBy('plan_produccion_id');
+
         foreach ($planes as $plan) {
+            $plan->setAttribute('producto_destino_id', $destinos->get($plan->id)?->first()?->id);
             $resumenPlan = ['reservadas' => 0, 'asignadas' => 0, 'total' => 0];
             foreach ($plan->planProductos as $productoPlan) {
                 $resumen = ['reservadas' => 0, 'asignadas' => 0, 'total' => 0];
@@ -155,7 +162,7 @@ class PlanProduccionController extends Controller
 
         return view(
             'produccion.planes.index',
-            compact('planes', 'filtros', 'etapas')
+            compact('planes', 'filtros', 'etapas', 'familias', 'productosFiltro')
         );
     }
 
@@ -163,12 +170,15 @@ class PlanProduccionController extends Controller
     {
         $productos = Producto::query()
             ->where('activo', true)
+            ->with(['familia','tipo'])
             ->orderBy('nombre')
             ->get([
                 'id',
                 'codigo',
                 'nombre',
                 'ue_produccion',
+                'familia_id',
+                'tipo_id',
             ]);
 
         return view(
@@ -444,6 +454,8 @@ class PlanProduccionController extends Controller
         PlanProducto $planProducto,
         UnidadProduccion $unidad
     ) {
+        abort_if($plan->estado==='cancelado',422,'El plan está anulado. Reactivalo antes de modificarlo.');
+
         if (
             $planProducto->plan_produccion_id !== $plan->id ||
             $unidad->plan_producto_id !== $planProducto->id
@@ -508,6 +520,8 @@ class PlanProduccionController extends Controller
         PlanProduccion $plan,
         PlanProducto $planProducto
     ) {
+        abort_if($plan->estado==='cancelado',422,'El plan está anulado. Reactivalo antes de modificarlo.');
+
         if ($planProducto->plan_produccion_id !== $plan->id) {
             abort(404);
         }

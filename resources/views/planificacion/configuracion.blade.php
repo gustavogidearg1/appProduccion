@@ -12,7 +12,7 @@
 @if ($productoId)
 <form method="POST" action="{{ route('plazos.guardar') }}">@csrf
 <input type="hidden" name="producto_id" value="{{ $productoId }}">
-<p class="small text-muted">Vacío = plazo sin definir. «Desde hoy» mantiene el plazo comercial vigente aunque la etapa se haya alcanzado hace meses. OK Calidad completada ofrece entrega inmediata, salvo demoras activas.</p>
+<p class="small text-muted">Vacío = plazo sin definir. «Desde hoy» reinicia el plazo cada día. Sin marcar, se conserva la previsión vigente; si venció, se recalcula desde hoy con una alerta. OK Calidad completada ofrece entrega inmediata, salvo demoras activas.</p>
 <div class="table-responsive"><table class="table"><thead><tr><th>Etapa</th><th>Alcance</th><th>Días hábiles restantes</th><th>Calcular siempre desde hoy</th></tr></thead><tbody>
 @foreach ($etapas as $etapa)
 @php

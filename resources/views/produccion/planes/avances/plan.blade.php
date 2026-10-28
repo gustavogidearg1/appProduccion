@@ -32,6 +32,8 @@
         </div>
     @endif
 
+    @if ($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+    <p class="small text-muted">Podés corregir las fechas reales indicando un motivo. Sin fechas queda Pendiente; con solo inicio, En proceso; con inicio y fin, Completada. Las fechas planificadas se guardan por separado.</p>
     <div class="card shadow-sm">
         <div class="card-header">
             <h4 class="mb-0">Etapas grupales</h4>
@@ -77,6 +79,8 @@
                                 );
 
                                 $formPlanificacion = 'planificacion-etapa-' . $etapa->id;
+                                $formReales = 'reales-etapa-' . $etapa->id;
+                                $posteriores = $avances->filter(fn($a)=>$a->etapa?->orden>$etapa->orden && ($a->estado!=='pendiente' || $a->fecha_inicio || $a->fecha_fin));
                             @endphp
 
                             <tr>
@@ -129,11 +133,11 @@
                                 </td>
 
                                 <td>
-                                    {{ $avance?->fecha_inicio?->format('d/m/Y H:i') ?? '-' }}
+                                    <input type="datetime-local" step="1" form="{{ $formReales }}" name="fecha_inicio" aria-label="Inicio real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ $avance?->fecha_inicio?->format('Y-m-d\TH:i:s') }}">
                                 </td>
 
                                 <td>
-                                    {{ $avance?->fecha_fin?->format('d/m/Y H:i') ?? '-' }}
+                                    <input type="datetime-local" step="1" form="{{ $formReales }}" name="fecha_fin" aria-label="Fin real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ $avance?->fecha_fin?->format('Y-m-d\TH:i:s') }}">
                                 </td>
 
                                 <td>
@@ -154,6 +158,14 @@
                                         </button>
                                     </form>
 
+                                    <details class="mb-2" style="min-width:190px"><summary class="text-warning-emphasis" style="cursor:pointer">Guardar corrección real</summary>
+                                        <form id="{{ $formReales }}" method="POST" action="{{ route('planes.avances.reales',[$plan,$etapa]) }}" class="mt-2">@csrf @method('PUT')
+                                            <input type="hidden" name="version" value="{{ $versionReales }}">
+                                            <label class="small">Motivo de la corrección<textarea name="motivo" class="form-control form-control-sm" required maxlength="5000"></textarea></label>
+                                            @if ($posteriores->isNotEmpty())<label class="small d-block mt-2"><input type="checkbox" name="reiniciar_posteriores" value="1"> Si quito el fin real, confirmo devolver las etapas generales posteriores a pendiente y quitar sus fechas reales. Los avances individuales no se modifican.</label>@endif
+                                            <button class="btn btn-sm btn-warning mt-2">Guardar fechas reales</button>
+                                        </form>
+                                    </details>
                                     @if(!$avance || $avance->estado === 'pendiente')
 
                                         @if($puedeIniciar)
@@ -217,5 +229,20 @@
         </div>
     </div>
 
+<div class="card mt-4"><div class="card-header">Historial de correcciones reales del plan</div><div class="card-body">
+@forelse ($correccionesPlan as $correccion)
+@php
+    $antes=json_decode($correccion->anterior,true);
+    $nuevo=json_decode($correccion->nuevo,true);
+@endphp
+<details class="border rounded p-2 mb-2"><summary>{{ $correccion->created_at }} · {{ $correccion->etapa_nombre }} · {{ $correccion->responsable }}</summary><p class="mt-2">{{ $correccion->motivo }}</p>
+<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Dato</th><th>Antes</th><th>Después</th></tr></thead><tbody>
+@foreach (['estado'=>'Estado','fecha_inicio'=>'Inicio real','fecha_fin'=>'Fin real'] as $campo=>$nombre)<tr><td>{{ $nombre }}</td><td>{{ $antes['etapa'][$campo] ?? '-' }}</td><td>{{ $nuevo['etapa'][$campo] ?? '-' }}</td></tr>@endforeach
+</tbody></table></div>
+@if (!empty($antes['posteriores']))<p>Se reiniciaron {{ count($antes['posteriores']) }} etapas generales. Fechas anteriores:</p>@foreach ($antes['posteriores'] as $a)<div class="small">Etapa #{{ $a['etapa_id'] }} · {{ $a['estado'] }} · {{ $a['fecha_inicio'] ?? '-' }} → {{ $a['fecha_fin'] ?? '-' }}</div>@endforeach @endif
+</details>
+@empty<p class="text-muted mb-0">No hay correcciones registradas.</p>@endforelse
+{{ $correccionesPlan->links('pagination::bootstrap-5') }}
+</div></div>
 </div>
 @endsection

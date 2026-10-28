@@ -182,6 +182,12 @@
                                                     <span class="badge bg-success">
                                                         {{ ucfirst($asignacion->estado) }}
                                                     </span>
+                                                    @if ($asignacion->unidad)
+                                                        <div class="small mt-2">
+                                                            <strong>Entrega estimada actual</strong>
+                                                            @include('planificacion.estimacion', ['estimacion'=>$asignacion->unidad->estimacion_entrega])
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             @endforeach
                                         @else

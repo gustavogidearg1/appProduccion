@@ -128,7 +128,7 @@
 
                                     $estado = str_replace('_', ' ', $unidad->estado);
 
-                                    $nombreEstado = $avanceActual?->etapa?->nombre ?? ucfirst($estado);
+                                    $nombreEstado = $unidad->estimacion_entrega['excluida'] ? $unidad->estimacion_entrega['texto'] : $unidad->estimacion_entrega['etapa'];
                                 @endphp
 
                                 <tr>
@@ -171,12 +171,12 @@
                                             <span class="badge bg-secondary">
                                                 {{ ucfirst($nombreEstado) }}
                                             </span>
+                                            @if (!$unidad->estimacion_entrega['excluida'] && $unidad->estimacion_entrega['origen'] === 'plan')<div class="small text-muted">Etapa del plan</div>@endif
                                         @endif
                                     </td>
 
                                     <td>
-                                        {{ $unidad->estimacion_entrega['texto'] }}
-                                        @if ($unidad->estimacion_entrega['demora'])<div class="small text-warning-emphasis">Demora / previsión vencida</div>@endif
+                                        @include('planificacion.estimacion', ['estimacion'=>$unidad->estimacion_entrega])
                                     </td>
                                     <td>
                                         {{ $unidad->color ?? '-' }}

@@ -28,6 +28,8 @@
             </div>
         @endif
 
+        @if ($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+
         <div class="card shadow-sm mb-4">
             <div class="card-body">
                 <form method="GET" action="{{ route('planes.index') }}">
@@ -51,7 +53,7 @@
                                 value="{{ $filtros['fecha_hasta'] ?? '' }}">
                         </div>
 
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label for="estado" class="form-label">
                                 Estado del plan
                             </label>
@@ -68,12 +70,12 @@
                                 </option>
 
                                 <option value="cancelado" @selected(($filtros['estado'] ?? '') === 'cancelado')>
-                                    Cancelado
+                                    Anulado
                                 </option>
                             </select>
                         </div>
 
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label for="etapa_id" class="form-label">
                                 Etapa productiva
                             </label>
@@ -97,6 +99,24 @@
                             </select>
                         </div>
 
+                        <div class="col-md-3">
+                            <label for="familia_id" class="form-label">Familia</label>
+                            <select name="familia_id" id="familia_id" class="form-select">
+                                <option value="">Todas las familias</option>
+                                @foreach ($familias as $familia)<option value="{{ $familia->id }}" @selected((string)($filtros['familia_id'] ?? '') === (string)$familia->id)>{{ $familia->nombre }}</option>@endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="producto_id" class="form-label">Producto</label>
+                            <select name="producto_id" id="producto_id" class="form-select">
+                                <option value="">Todos los productos</option>
+                                @foreach ($productosFiltro as $producto)<option value="{{ $producto->id }}" data-familia="{{ $producto->familia_id }}" @selected((string)($filtros['producto_id'] ?? '') === (string)$producto->id)>{{ $producto->nombre }}</option>@endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="chasis" class="form-label">Chasis</label>
+                            <input type="search" name="chasis" id="chasis" class="form-control" maxlength="100" placeholder="Completo o parte del número" value="{{ $filtros['chasis'] ?? '' }}">
+                        </div>
                         <div class="col-md-2 d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-search me-1"></i>
@@ -205,9 +225,10 @@
                                     </td>
 
                                     <td>
-                                        <a href="{{ ($plan->planProductos->isNotEmpty() ? route('planes.productos.unidades', [$plan, $plan->planProductos->sortBy('id')->first()]) : route('planes.show', $plan)) }}" class="btn btn-sm btn-primary">
+                                        <a href="{{ ($plan->producto_destino_id ? route('planes.productos.unidades', [$plan, $plan->producto_destino_id]) : route('planes.show', $plan)) }}" class="btn btn-sm btn-primary">
                                             Ver
                                         </a>
+                                        <a href="{{ route('planes.estado.index',$plan) }}" class="btn btn-sm btn-outline-danger mt-1">{{ $plan->estado==='cancelado' ? 'Reactivar / historial' : 'Anular / historial' }}</a>
                                     </td>
                                 </tr>
                             @empty
@@ -230,4 +251,20 @@
         </div>
 
     </div>
+    <script>
+        (() => {
+            const familia = document.getElementById('familia_id');
+            const producto = document.getElementById('producto_id');
+            function filtrarProductos(resetear) {
+                for (const opcion of producto.options) {
+                    const visible = !opcion.value || !familia.value || opcion.dataset.familia === familia.value;
+                    opcion.hidden = !visible;
+                    opcion.disabled = !visible;
+                }
+                if (resetear && producto.selectedOptions[0]?.disabled) producto.value = '';
+            }
+            familia.addEventListener('change', () => filtrarProductos(true));
+            filtrarProductos(false);
+        })();
+    </script>
 @endsection

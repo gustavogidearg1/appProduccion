@@ -26,7 +26,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('ventas.store') }}">
+    <form id="crear-venta-form" method="POST" action="{{ route('ventas.store') }}">
         @csrf
 
         <div class="card shadow-sm mb-4">
@@ -156,8 +156,11 @@
                 <div id="productos-container">
 
                     @foreach ($detallesIniciales as $indice => $detalleInicial)
-                    @php($unidadFila = $unidadesFormulario->get($detalleInicial['unidad_produccion_id'] ?? null))
-                    <div class="producto-row border rounded p-3 mb-3">
+                    @php
+                        $unidadFila = $unidadesFormulario->get($detalleInicial['unidad_produccion_id'] ?? null);
+                        $productoFila = $productos->firstWhere('id', $detalleInicial['producto_id'] ?? null);
+                    @endphp
+                    <div class="producto-row border rounded p-3 mb-3" data-unidad="{{ $unidadFila?->id }}">
                         <div class="row g-3 align-items-end">
 
                             <div class="col-md-5">
@@ -172,27 +175,18 @@
 
                                 @if ($unidadFila)
                                     <p class="text-muted">Chasis seleccionado: <strong>{{ $unidadFila->chasis }}</strong></p>
-                                    <input type="hidden" name="detalles[{{ $indice }}][producto_id]" value="{{ $detalleInicial['producto_id'] ?? '' }}">
-                                @endif
-                                <select
-    @disabled($unidadFila !== null)
-    name="detalles[{{ $indice }}][producto_id]"
-    class="form-select"
-    required
->
-    <option value="">Seleccionar producto</option>
+                                    <div class="border rounded bg-light p-2 mb-3">
+                                        <strong>Entrega estimada actual</strong>
+                                        @include('planificacion.estimacion', ['estimacion'=>$unidadFila->estimacion_entrega])
+                                    </div>
 
-    @foreach ($productos as $producto)
-        <option
-            value="{{ $producto->id }}"
-            @selected(
-                (string) ($detalleInicial['producto_id'] ?? '') === (string) $producto->id
-            )
-        >
-            {{ $producto->nombre }}
-        </option>
-    @endforeach
-</select>
+                                @endif
+                                <input type="hidden" class="venta-producto-id" name="detalles[{{ $indice }}][producto_id]" value="{{ $detalleInicial['producto_id'] ?? '' }}">
+                                <div class="d-flex flex-wrap gap-2">
+                                    <div class="form-control bg-light venta-producto-resumen" style="width:auto;flex:1;min-width:160px" aria-live="polite">@if ($productoFila){{ $productoFila->codigo }} - {{ $productoFila->nombre }}@else Seleccionar producto @endif</div>
+                                    @if (!$unidadFila)<button type="button" class="btn btn-outline-primary buscar-producto"><i class="bi bi-search me-1"></i>Buscar producto</button>@endif
+                                </div>
+                                <div class="small text-danger error-producto" role="alert"></div>
                             </div>
 
                             <div class="col-md-2">
@@ -262,121 +256,50 @@
 
 </div>
 
+@include('components.buscador-productos', ['productos'=>$productos])
+<template id="detalle-venta-template">
+<div class="producto-row border rounded p-3 mb-3" data-unidad=""><div class="row g-3 align-items-end">
+<div class="col-md-5"><label class="form-label">Producto</label>
+<input type="hidden" name="detalles[__INDEX__][unidad_produccion_id]" value="">
+<input type="hidden" name="detalles[__INDEX__][producto_id]" class="venta-producto-id" value="">
+<div class="d-flex flex-wrap gap-2"><div class="form-control bg-light venta-producto-resumen" style="width:auto;flex:1;min-width:160px" aria-live="polite">Seleccionar producto</div><button type="button" class="btn btn-outline-primary buscar-producto"><i class="bi bi-search me-1"></i>Buscar producto</button></div>
+<div class="small text-danger error-producto" role="alert"></div></div>
+<div class="col-md-2"><label class="form-label">Cantidad</label><input type="number" name="detalles[__INDEX__][cantidad]" class="form-control" min="0.01" step="0.01" value="1" required></div>
+<div class="col-md-3"><label class="form-label">Precio unitario</label><input type="number" name="detalles[__INDEX__][precio_unitario]" class="form-control" min="0" step="0.01" required></div>
+<div class="col-md-2"><button type="button" class="btn btn-outline-danger w-100 quitar-producto">Quitar</button></div>
+</div></div>
+</template>
 <script>
-    const productos = @json(
-        $productos->map(function ($producto) {
-            return [
-                'id' => $producto->id,
-                'nombre' => $producto->nombre,
-            ];
-        })->values()
-    );
-
+document.addEventListener('DOMContentLoaded', () => {
     let indiceProducto = {{ max([0, ...array_map('intval', array_keys($detallesIniciales))]) + 1 }};
-
     const contenedor = document.getElementById('productos-container');
-    const botonAgregar = document.getElementById('agregar-producto');
-
-    function opcionesProductos() {
-        let opciones = `
-            <option value="">
-                Seleccionar producto
-            </option>
-        `;
-
-        productos.forEach(function (producto) {
-            opciones += `
-                <option value="${producto.id}">
-                    ${producto.nombre}
-                </option>
-            `;
-        });
-
-        return opciones;
-    }
-
-    botonAgregar.addEventListener('click', function () {
-        const fila = document.createElement('div');
-
-        fila.className = 'producto-row border rounded p-3 mb-3';
-
-        fila.innerHTML = `
-            <div class="row g-3 align-items-end">
-
-                <div class="col-md-5">
-                    <label class="form-label">
-                        Producto
-                    </label>
-
-                    <select
-                        name="detalles[${indiceProducto}][producto_id]"
-                        class="form-select"
-                        required
-                    >
-                        ${opcionesProductos()}
-                    </select>
-                </div>
-
-                <div class="col-md-2">
-                    <label class="form-label">
-                        Cantidad
-                    </label>
-
-                    <input
-                        type="number"
-                        name="detalles[${indiceProducto}][cantidad]"
-                        class="form-control"
-                        min="0.01"
-                        step="0.01"
-                        value="1"
-                        required
-                    >
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">
-                        Precio unitario
-                    </label>
-
-                    <input
-                        type="number"
-                        name="detalles[${indiceProducto}][precio_unitario]"
-                        class="form-control"
-                        min="0"
-                        step="0.01"
-                        required
-                    >
-                </div>
-
-                <div class="col-md-2">
-                    <button
-                        type="button"
-                        class="btn btn-outline-danger w-100 quitar-producto"
-                    >
-                        Quitar
-                    </button>
-                </div>
-
-            </div>
-        `;
-
-        contenedor.appendChild(fila);
-
-        indiceProducto++;
+    const template = document.getElementById('detalle-venta-template');
+    document.getElementById('agregar-producto').addEventListener('click', () => {
+        contenedor.insertAdjacentHTML('beforeend', template.innerHTML.replaceAll('__INDEX__', indiceProducto++));
+        window.buscadorProductos.abrir(contenedor.lastElementChild);
     });
-
-    contenedor.addEventListener('click', function (event) {
-        if (!event.target.classList.contains('quitar-producto')) {
-            return;
-        }
-
-        const filas = contenedor.querySelectorAll('.producto-row');
-
-        if (filas.length === 1) {
-            return;
-        }
-
-        event.target.closest('.producto-row').remove();
+    contenedor.addEventListener('click', evento => {
+        const boton = evento.target.closest('button');
+        if (!boton) return;
+        const fila = boton.closest('.producto-row');
+        if (boton.classList.contains('buscar-producto') && !fila.dataset.unidad) window.buscadorProductos.abrir(fila);
+        if (boton.classList.contains('quitar-producto') && contenedor.querySelectorAll('.producto-row').length > 1) fila.remove();
     });
+    contenedor.addEventListener('producto-seleccionado', evento => {
+        const fila = evento.target.closest('.producto-row');
+        if (!fila || fila.dataset.unidad) return;
+        fila.querySelector('.venta-producto-id').value = evento.detail.id;
+        fila.querySelector('.venta-producto-resumen').textContent = `${evento.detail.codigo ? evento.detail.codigo + ' - ' : ''}${evento.detail.nombre}`;
+        fila.querySelector('.error-producto').textContent = '';
+    });
+    document.getElementById('crear-venta-form').addEventListener('submit', evento => {
+        const fila = [...contenedor.querySelectorAll('.producto-row')].find(f => !f.querySelector('.venta-producto-id').value);
+        if (fila) {
+            evento.preventDefault();
+            fila.querySelector('.error-producto').textContent = 'Seleccioná un producto antes de guardar.';
+            window.buscadorProductos.abrir(fila);
+        }
+    });
+});
 </script>
 @endsection

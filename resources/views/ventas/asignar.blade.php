@@ -50,34 +50,9 @@
                     <tbody>
                         @forelse ($unidades as $unidad)
                             @php
-                                $avanceActual = $unidad->avances
-                                    ->where('estado', 'en_proceso')
-                                    ->sortByDesc(
-                                        fn ($avance) =>
-                                            $avance->etapa?->orden ?? 0
-                                    )
-                                    ->first();
-
-                                $ultimoAvance = $unidad->avances
-                                    ->sortByDesc(
-                                        fn ($avance) =>
-                                            $avance->etapa?->orden ?? 0
-                                    )
-                                    ->first();
-
-                                $estadoActual =
-                                    $avanceActual?->etapa?->nombre
-                                    ?? $ultimoAvance?->etapa?->nombre
-                                    ?? ucfirst($unidad->estado);
-
-                                $fechaEntrega =
-                                    $avanceActual?->fecha_fin_planificada
-                                    ?? $ultimoAvance?->fecha_fin_planificada;
-
-                                $esStock = in_array(
-                                    $unidad->estado,
-                                    ['terminada', 'entregada']
-                                );
+                                $estimacion = $unidad->estimacion_entrega;
+                                $estadoActual = $estimacion['etapa'];
+                                $esStock = $estimacion['inmediata'];
                             @endphp
 
                             <tr>
@@ -104,13 +79,7 @@
                                 </td>
 
                                 <td>
-                                    @if ($fechaEntrega)
-                                        {{ $fechaEntrega->format('d/m/Y H:i') }}
-                                    @elseif ($esStock)
-                                        Inmediata
-                                    @else
-                                        Sin fecha definida
-                                    @endif
+                                    @include('planificacion.estimacion', ['estimacion'=>$estimacion])
                                 </td>
 
                                 <td>

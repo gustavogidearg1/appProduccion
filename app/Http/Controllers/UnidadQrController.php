@@ -24,9 +24,7 @@ class UnidadQrController extends Controller
             abort(404);
         }
 
-        $url = route('produccion.movil') .
-            '?plan=' . urlencode((string) $plan->numero) .
-            '&chasis=' . urlencode((string) $unidad->chasis);
+        $url = route('produccion.movil', ['unidad' => $unidad->id]);
 
         $resultado = (new Builder(
             writer: new SvgWriter(),

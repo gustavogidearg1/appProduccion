@@ -158,7 +158,7 @@
                                     <th>Producto</th>
                                     <th>Cantidad</th>
                                     <th>Precio unitario</th>
-                                    <th>Asignadas</th>
+                                    <th>Chasis y entrega estimada</th>
                                 </tr>
                             </thead>
 
@@ -219,9 +219,20 @@
 
                                         <td>
                                             @if ($asignadas > 0)
-                                                <span class="badge bg-success">
-                                                    {{ $asignadas }}
-                                                </span>
+                                                <div class="small text-muted mb-2">{{ $asignadas }} unidades reservadas / asignadas</div>
+                                                @foreach ($detalle->asignaciones->whereIn('estado', ['reservada', 'asignada']) as $asignacion)
+                                                    <div class="border rounded p-2 mb-2" style="min-width:230px">
+                                                        <span class="badge bg-dark">Chasis {{ $asignacion->unidad?->chasis ?: 'Sin cargar' }}</span>
+                                                        <span class="badge bg-success">{{ ucfirst($asignacion->estado) }}</span>
+                                                        @if ($asignacion->unidad)
+                                                            <div class="small mt-2"><strong>Entrega estimada actual</strong>
+                                                                @include('planificacion.estimacion', ['estimacion'=>$asignacion->unidad->estimacion_entrega])
+                                                            </div>
+                                                        @else
+                                                            <div class="small text-muted">Unidad no disponible</div>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
                                             @else
                                                 <span class="text-muted">
                                                     Sin asignar

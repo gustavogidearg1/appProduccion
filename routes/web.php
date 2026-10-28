@@ -23,9 +23,8 @@ Route::get('/', function () {
 
 
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [\App\Http\Controllers\TableroProduccionController::class, 'index'])
+    ->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -279,7 +278,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/planes/{plan}/demoras', [\App\Http\Controllers\DemoraProduccionController::class,'index'])->name('demoras.index');
     Route::post('/planes/{plan}/demoras', [\App\Http\Controllers\DemoraProduccionController::class,'guardar'])->name('demoras.guardar');
     Route::post('/planes/{plan}/demoras/{demora}/resolver', [\App\Http\Controllers\DemoraProduccionController::class,'resolver'])->name('demoras.resolver');
+    Route::get('/planes/{plan}/estado', [\App\Http\Controllers\PlanEstadoController::class,'index'])->name('planes.estado.index');
+    Route::put('/planes/{plan}/estado', [\App\Http\Controllers\PlanEstadoController::class,'update'])->name('planes.estado.update');
+    Route::put('/planes/{plan}/avances/{etapa}/fechas-reales', [\App\Http\Controllers\AvanceProduccionController::class,'corregirFechasPlan'])->name('planes.avances.reales');
+    Route::get('/planes/{plan}/productos/{planProducto}/unidades/{unidad}/avances/{etapa}/corregir', [\App\Http\Controllers\AvanceCorreccionController::class,'edit'])->name('avances.correccion.edit');
+    Route::put('/planes/{plan}/productos/{planProducto}/unidades/{unidad}/avances/{etapa}/corregir', [\App\Http\Controllers\AvanceCorreccionController::class,'update'])->name('avances.correccion.update');
     Route::get('/unidades/{unidad}/entrega', [\App\Http\Controllers\EntregaUnidadController::class,'index'])->name('entregas.index');
+    Route::post('/unidades/{unidad}/entrega/corregir-anterior', [\App\Http\Controllers\EntregaUnidadController::class,'corregirAnterior'])->name('entregas.corregir-anterior');
     Route::post('/unidades/{unidad}/entrega', [\App\Http\Controllers\EntregaUnidadController::class,'guardar'])->name('entregas.guardar');
     Route::post('/unidades/{unidad}/entrega/fotos', [\App\Http\Controllers\EntregaUnidadController::class,'agregarFotos'])->name('entregas.fotos');
     Route::get('/unidades/{unidad}/entrega/fotos/{foto}', [\App\Http\Controllers\EntregaUnidadController::class,'foto'])->name('entregas.foto');

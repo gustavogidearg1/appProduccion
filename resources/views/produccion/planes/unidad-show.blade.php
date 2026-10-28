@@ -354,6 +354,8 @@
                         Escaneá este código desde un celular para abrir
                         la producción móvil.
                     </p>
+                    <a href="{{ route('produccion.movil', ['unidad'=>$unidad->id]) }}" class="btn btn-sm btn-outline-primary mt-2 no-print">Abrir producción móvil</a>
+
                 </div>
             </div>
 
@@ -383,8 +385,8 @@
                 </div>
             </div>
 
-            <div class="card mb-3"><div class="card-body"><strong>Entrega estimada</strong><div>{{ $unidad->estimacion_entrega['texto'] }}</div>
-                @if ($unidad->estimacion_entrega['demora'])<div class="text-warning-emphasis">Demora / previsión vencida</div>@endif
+            <div class="card mb-3"><div class="card-body"><strong>Entrega estimada</strong>
+                @include('planificacion.estimacion', ['estimacion'=>$unidad->estimacion_entrega])
             </div></div>
             <div class="d-grid gap-2">
                 <a href="{{ route('entregas.index',$unidad) }}" class="btn btn-success no-print">Control de entrega y fotos</a>

@@ -19,7 +19,53 @@ class EntregaUnidadController extends Controller {
         $asignacion=$unidad->asignaciones()->whereIn('estado',['reservada','asignada'])->whereHas('detalle.venta',fn($q)=>$q->where('estado','!=','anulada'))->with('detalle.venta.cliente')->latest('id')->first();
         $pendientes=EtapaProduccion::where('activo',true)->where('alcance','unidad')->where('codigo','!=','ENTREGADO')
             ->whereNotIn('id',$unidad->avances->where('estado','completada')->pluck('etapa_id'))->orderBy('orden')->get();
-        return view('planificacion.entrega',compact('unidad','entrega','fotos','asignacion','pendientes'));
+        $avanceEntrega = $unidad->avances->first(fn ($a) => $a->etapa?->codigo === 'ENTREGADO');
+        $entregaAnterior = !$entrega && ($unidad->estado === 'entregada' || $avanceEntrega?->estado === 'completada');
+        return view('planificacion.entrega',compact('unidad','entrega','fotos','asignacion','pendientes','avanceEntrega','entregaAnterior'));
+    }
+    public function corregirAnterior(Request $r, UnidadProduccion $unidad) {
+        $datos = $r->validate([
+            'motivo' => ['required', 'string', 'max:5000'],
+            'confirmacion' => ['accepted'],
+        ]);
+        DB::transaction(function () use ($unidad, $datos) {
+            $unidad = UnidadProduccion::whereKey($unidad->id)->lockForUpdate()->firstOrFail();
+            if (DB::table('entregas_unidad')->where('unidad_produccion_id', $unidad->id)->exists()) {
+                throw ValidationException::withMessages(['motivo' => 'Existe un control de entrega registrado. Esta opción solo corrige pruebas anteriores sin control de salida.']);
+            }
+            $avances = $unidad->avances()->with('etapa')->lockForUpdate()->get();
+            $entregado = $avances->first(fn ($a) => $a->etapa?->codigo === 'ENTREGADO');
+            if ($unidad->estado !== 'entregada' && $entregado?->estado !== 'completada') {
+                throw ValidationException::withMessages(['motivo' => 'La unidad ya no tiene una entrega anterior para corregir.']);
+            }
+            $asignacion = $unidad->asignaciones()->whereIn('estado', ['reservada', 'asignada'])->latest('id')->first();
+            if (!$asignacion) {
+                throw ValidationException::withMessages(['motivo' => 'Se necesita una venta activa para conservar la trazabilidad de esta corrección.']);
+            }
+            $venta = Venta::whereKey($asignacion->detalle->venta_id)->lockForUpdate()->firstOrFail();
+            $asignacion = VentaAsignacion::whereKey($asignacion->id)->lockForUpdate()->firstOrFail();
+            if ($venta->estado === 'anulada' || !in_array($asignacion->estado, ['reservada', 'asignada'])) {
+                throw ValidationException::withMessages(['motivo' => 'La venta o su asignación ya no está activa.']);
+            }
+            $anterior = ['unidad' => $unidad->getAttributes(), 'avance_entregado' => $entregado?->getAttributes()];
+            $ok = $avances->contains(fn ($a) => $a->etapa?->codigo === 'OK_CALIDAD' && $a->estado === 'completada');
+            $hayAvances = $avances->contains(fn ($a) => $a->etapa?->codigo !== 'ENTREGADO' && in_array($a->estado, ['en_proceso', 'completada']));
+            $nuevoEstado = $ok ? 'terminada' : ($hayAvances ? 'en_produccion' : 'planificada');
+            if ($entregado) {
+                $entregado->update(['estado' => 'pendiente', 'fecha_inicio' => null, 'fecha_fin' => null,
+                    'iniciado_por' => null, 'finalizado_por' => null]);
+            }
+            $unidad->update(['estado' => $nuevoEstado]);
+            $usuario = auth()->id();
+            if ($usuario && !DB::table('users')->where('id', $usuario)->exists()) $usuario = null;
+            $venta->historial()->create([
+                'user_id' => $usuario, 'accion' => 'entrega_anterior_corregida',
+                'datos' => ['unidad_produccion_id' => $unidad->id, 'chasis' => $unidad->chasis,
+                    'motivo' => $datos['motivo'], 'responsable' => auth()->user()?->name ?? 'Usuario autenticado',
+                    'anterior' => $anterior, 'nuevo_estado' => $nuevoEstado, 'asignacion_conservada' => $asignacion->id],
+            ]);
+        });
+        return back()->with('success', 'Entrega anterior corregida. Se conservaron los datos anteriores en el historial y la reserva sigue vigente.');
     }
     private function validarFotos(Request $r): void {
         $r->validate(['fotos'=>['nullable','array','max:10'],'fotos.*'=>['required','image','mimes:jpg,jpeg,png,webp','max:5120']]);
