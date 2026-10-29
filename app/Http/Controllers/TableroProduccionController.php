@@ -37,6 +37,9 @@ class TableroProduccionController extends Controller {
         $r->merge(['desde'=>$r->input('desde') ?: $hoy->startOfMonth()->toDateString(),
             'hasta'=>$r->input('hasta') ?: $hoy->addMonthsNoOverflow(2)->endOfMonth()->toDateString()]);
         $filtros=$r->validate(['estado'=>['nullable','in:abierto,cerrado,cancelado'],
+            'sector_gantt'=>['nullable',\Illuminate\Validation\Rule::in(\App\Services\SectoresProduccion::CODIGOS)],
+            'plan_gantt'=>['nullable','integer','min:1'],
+            'situacion_gantt'=>['nullable','in:sin_planificar,coincidencias,pendiente,en_proceso,completada'],
             'desde'=>['required','date'],'hasta'=>['required','date','after_or_equal:desde'],'page'=>['nullable','integer','min:1']]);
         if(!$r->has('estado'))$filtros['estado']='abierto';
         $desde=$this->fecha($filtros['desde']);$hasta=$this->fecha($filtros['hasta']);
@@ -99,7 +102,7 @@ class TableroProduccionController extends Controller {
             $sinEstimacion=$pendientesDisponibilidad->count()-$disponibles->count();
             $estimada=$disponibles->map(fn($u)=>$u->estimacion_entrega['fecha'])->sort()->last();
             $detalle=[];
-            foreach($etapas->where('alcance','plan') as $etapa){
+            foreach(\App\Services\SectoresProduccion::ordenar($etapas->where('alcance','plan')->whereIn('codigo',\App\Services\SectoresProduccion::CODIGOS)) as $etapa){
                 $avance=$plan->avances->firstWhere('etapa_id',$etapa->id);
                 $detalle[]=['nombre'=>$etapa->nombre.' · plan','url'=>route('planes.avances',$plan),
                     'planificada'=>$this->barra($avance?->fecha_inicio_planificada,$avance?->fecha_fin_planificada,$desde,$hasta),
@@ -117,8 +120,47 @@ class TableroProduccionController extends Controller {
             $gantt[$plan->id]=['planificada'=>$this->barra($plan->fecha_planificada,$plan->fecha_fin_planificada,$desde,$hasta),
                 'real'=>$this->real($avances,$desde,$hasta,$hoy),'estimada'=>$estimacionPlan,'detalle'=>$detalle];
         }
+        // Cada etapa compara todos los planes filtrados, sin depender de la página.
+        $sectoresGantt=\App\Services\SectoresProduccion::ordenar($etapas->where('alcance','plan')->whereIn('codigo',\App\Services\SectoresProduccion::CODIGOS));
+        $planesGantt=$planesTodos->map(fn($p)=>['id'=>$p->id,'numero'=>$p->numero]);
+        $ganttEtapas=[];
+        foreach($sectoresGantt as $etapa){
+            if(!empty($filtros['sector_gantt']) && $etapa->codigo!==$filtros['sector_gantt'])continue;
+            $filas=[];
+            foreach($planesTodos as $plan){
+                $avance=$plan->avances->firstWhere('etapa_id',$etapa->id);
+                $inicio=$avance?->fecha_inicio_planificada;
+                $fin=$avance?->fecha_fin_planificada;
+                $aviso= !$inicio && !$fin ? 'Sin planificar' : (!$inicio || !$fin ? 'Planificación incompleta' : ($fin->lt($inicio) ? 'Fechas invertidas: revisar' : null));
+                $filas[]=['plan'=>$plan,'avance'=>$avance,'inicio'=>$inicio,'fin'=>$fin,'aviso'=>$aviso,'coincidencias'=>[],
+                    'planificada'=>$this->barra($inicio,$fin,$desde,$hasta),
+                    'real'=>$this->real(collect($avance?[$avance]:[]),$desde,$hasta,$hoy)];
+            }
+            // La comparación es por día visible; indica coincidencia, no falta de capacidad.
+            foreach($filas as $i=>$fila){
+                if($fila['aviso'] || $fila['plan']->estado==='cancelado')continue;
+                foreach($filas as $j=>$otra){
+                    if($j<=$i || $otra['aviso'] || $otra['plan']->estado==='cancelado')continue;
+                    $a=$this->fecha($fila['inicio'])->max($this->fecha($otra['inicio']))->max($desde);
+                    $z=$this->fecha($fila['fin'])->min($this->fecha($otra['fin']))->min($hasta);
+                    if($a->lte($z)){
+                        $filas[$i]['coincidencias'][]=$otra['plan']->numero;
+                        $filas[$j]['coincidencias'][]=$fila['plan']->numero;
+                    }
+                }
+            }
+            // Filtrar después de detectar coincidencias conserva los otros planes como referencia.
+            $filas=array_values(array_filter($filas,function($fila)use($filtros){
+                if(!empty($filtros['plan_gantt']) && (int)$fila['plan']->id!==(int)$filtros['plan_gantt'])return false;
+                $situacion=$filtros['situacion_gantt'] ?? '';
+                if($situacion==='sin_planificar')return $fila['aviso']!==null;
+                if($situacion==='coincidencias')return !empty($fila['coincidencias']);
+                return !$situacion || ($fila['avance']?->estado ?? 'pendiente')===$situacion;
+            }));
+            if($filas)$ganttEtapas[]=['nombre'=>$etapa->nombre,'filas'=>$filas];
+        }
         $ancho=$dias->count()*26;
         $hoyX=$hoy->betweenIncluded($desde,$hasta)?(int)$desde->diffInDays($hoy)*26:null;
-        return view('dashboard',compact('planes','filtros','totales','tarjetas','dias','meses','gantt','ancho','hoyX','hoy'));
+        return view('dashboard',compact('planes','filtros','totales','tarjetas','dias','meses','gantt','ancho','hoyX','hoy','ganttEtapas','sectoresGantt','planesGantt'));
     }
 }

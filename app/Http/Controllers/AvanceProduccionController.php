@@ -198,6 +198,8 @@ class AvanceProduccionController extends Controller
             ->orderBy('orden')
             ->get();
 
+        $etapas = \App\Services\SectoresProduccion::ordenar($etapas);
+
         $avances = $plan
             ->avances()
             ->with('etapa')
@@ -220,28 +222,28 @@ class AvanceProduccionController extends Controller
         $d=$request->validate(['fecha_inicio'=>['nullable','date'],'fecha_fin'=>['nullable','date'],
             'motivo'=>['required','string','max:5000'],'version'=>['required','string','size:64'],
             'reiniciar_posteriores'=>['nullable','boolean']]);
-        $inicio=!empty($d['fecha_inicio']) ? \Carbon\Carbon::parse($d['fecha_inicio']) : null;
-        $fin=!empty($d['fecha_fin']) ? \Carbon\Carbon::parse($d['fecha_fin']) : null;
+        $inicio=!empty($d['fecha_inicio']) ? \Carbon\Carbon::parse($d['fecha_inicio'], \App\Services\EstimadorEntrega::ZONA)->startOfDay() : null;
+        $fin=!empty($d['fecha_fin']) ? \Carbon\Carbon::parse($d['fecha_fin'], \App\Services\EstimadorEntrega::ZONA)->startOfDay() : null;
         $error=function($mensaje){throw \Illuminate\Validation\ValidationException::withMessages(['fechas_reales'=>$mensaje]);};
         if($fin && !$inicio)$error('Para indicar un fin real también debe existir el inicio real.');
         if($fin && $fin->lt($inicio))$error('El fin real no puede ser anterior al inicio real.');
-        if(($inicio && $inicio->isFuture()) || ($fin && $fin->isFuture()))$error('Las fechas reales no pueden estar en el futuro.');
+        if(($inicio && $inicio->toDateString() > today(\App\Services\EstimadorEntrega::ZONA)->toDateString()) || ($fin && $fin->toDateString() > today(\App\Services\EstimadorEntrega::ZONA)->toDateString()))$error('Las fechas reales no pueden estar en el futuro.');
         $estado=$fin ? 'completada' : ($inicio ? 'en_proceso' : 'pendiente');
         \Illuminate\Support\Facades\DB::transaction(function()use($plan,$etapa,$d,$inicio,$fin,$estado,$error){
             $plan=PlanProduccion::whereKey($plan->id)->lockForUpdate()->firstOrFail();
             $avances=$plan->avances()->with('etapa')->lockForUpdate()->get();
             $version=hash('sha256',json_encode($avances->sortBy('id')->map(fn($a)=>$a->getRawOriginal())->values()->all()));
             if(!hash_equals($version,$d['version']))$error('El plan cambió mientras editabas. Actualizá la página antes de corregir.');
-            $posteriores=$avances->filter(fn($a)=>$a->etapa?->orden>$etapa->orden && ($a->estado!=='pendiente' || $a->fecha_inicio || $a->fecha_fin));
+            $posteriores=$avances->filter(fn($a)=>in_array($a->etapa?->codigo,\App\Services\SectoresProduccion::posteriores($etapa->codigo),true) && ($a->estado!=='pendiente' || $a->fecha_inicio || $a->fecha_fin));
             if($estado!=='completada' && $posteriores->isNotEmpty() && empty($d['reiniciar_posteriores']))$error('Confirmá el reinicio de las etapas generales posteriores para quitar estas fechas.');
             if($inicio){
-                $previas=EtapaProduccion::where('alcance','plan')->where('activo',true)->where('orden','<',$etapa->orden)->get();
+                $previas=EtapaProduccion::where('alcance','plan')->where('activo',true)->whereIn('codigo',\App\Services\SectoresProduccion::previas($etapa->codigo))->get();
                 foreach($previas as $previa){$a=$avances->firstWhere('etapa_id',$previa->id);
                     if(!$a || $a->estado!=='completada')$error('Primero debe completarse '.$previa->nombre.'.');
-                    if($a->fecha_fin && $inicio->lt($a->fecha_fin))$error('El inicio debe ser posterior o igual al fin de '.$previa->nombre.'.');
+                    if($a->fecha_fin && $inicio->toDateString() < $a->fecha_fin->toDateString())$error('El inicio debe ser posterior o igual al fin de '.$previa->nombre.'.');
                 }
             }
-            if($fin)foreach($posteriores as $a)if($a->fecha_inicio && $fin->gt($a->fecha_inicio))$error('El fin supera el inicio de una etapa posterior. Corregí primero esa etapa.');
+            if($fin)foreach($posteriores as $a)if($a->fecha_inicio && $fin->toDateString() > $a->fecha_inicio->toDateString())$error('El fin supera el inicio de una etapa posterior. Corregí primero esa etapa.');
             $avance=$avances->firstWhere('etapa_id',$etapa->id);
             $antes=['etapa'=>$avance?->getAttributes(),'posteriores'=>[]];
             if($estado!=='completada')foreach($posteriores as $a){$antes['posteriores'][]=$a->getAttributes();$a->update(['estado'=>'pendiente','fecha_inicio'=>null,'fecha_fin'=>null,'iniciado_por'=>null,'finalizado_por'=>null]);}
@@ -321,7 +323,7 @@ class AvanceProduccionController extends Controller
         $etapasAnteriores = EtapaProduccion::query()
             ->where('alcance', 'plan')
             ->where('activo', true)
-            ->where('orden', '<', $etapa->orden)
+            ->whereIn('codigo', \App\Services\SectoresProduccion::previas($etapa->codigo))
             ->orderBy('orden')
             ->get();
 
@@ -349,7 +351,7 @@ class AvanceProduccionController extends Controller
             ],
             [
                 'estado' => 'en_proceso',
-                'fecha_inicio' => now(),
+                'fecha_inicio' => today(\App\Services\EstimadorEntrega::ZONA),
                 'iniciado_por' => auth()->id(),
             ]
         );
@@ -357,7 +359,7 @@ class AvanceProduccionController extends Controller
         if ($avance->estado === 'pendiente') {
             $avance->update([
                 'estado' => 'en_proceso',
-                'fecha_inicio' => now(),
+                'fecha_inicio' => today(\App\Services\EstimadorEntrega::ZONA),
                 'iniciado_por' => auth()->id(),
             ]);
         }
@@ -395,7 +397,7 @@ class AvanceProduccionController extends Controller
 
         $avance->update([
             'estado' => 'completada',
-            'fecha_fin' => now(),
+            'fecha_fin' => today(\App\Services\EstimadorEntrega::ZONA),
             'finalizado_por' => auth()->id(),
             'observaciones' => $request->input('observaciones'),
         ]);

@@ -194,22 +194,13 @@
                                 Estado
                             </div>
 
-                            @if ($unidad->estado === 'entregada')
-                                <span class="badge bg-success fs-6">
-                                    Entregada
-                                </span>
-                            @elseif ($unidad->estado === 'terminada')
-                                <span class="badge bg-primary fs-6">
-                                    Terminada
-                                </span>
-                            @elseif ($unidad->estado === 'en_produccion')
-                                <span class="badge bg-warning text-dark fs-6">
-                                    En producción
-                                </span>
-                            @else
-                                <span class="badge bg-secondary fs-6">
-                                    {{ ucfirst(str_replace('_', ' ', $unidad->estado)) }}
-                                </span>
+                            @php
+                                $estimacionEstado = $unidad->estimacion_entrega;
+                                $nombreEstado = $estimacionEstado['excluida'] ? $estimacionEstado['texto'] : $estimacionEstado['etapa'];
+                            @endphp
+                            <span class="badge bg-secondary fs-6">{{ $nombreEstado }}</span>
+                            @if (!$estimacionEstado['excluida'])
+                                <div class="small text-muted">{{ $estimacionEstado['origen'] === 'plan' ? 'Etapa del plan' : 'Etapa del chasis' }}</div>
                             @endif
                         </div>
 

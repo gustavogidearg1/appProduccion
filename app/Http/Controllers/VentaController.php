@@ -23,7 +23,7 @@ class VentaController extends Controller
             'cliente_id' => $request->input('cliente_id'),
             'producto_id' => $request->input('producto_id'),
             'chasis' => $request->input('chasis'),
-            'estado' => $request->input('estado'),
+            'estado' => $request->input('estado', 'confirmadas_pendientes'),
             'asignacion' => $request->input('asignacion'),
             'fecha_desde' => $request->input('fecha_desde'),
             'fecha_hasta' => $request->input('fecha_hasta'),
@@ -44,7 +44,8 @@ class VentaController extends Controller
             ->with([
                 'cliente',
                 'detalles.producto.tipo',
-                'detalles.asignaciones.unidad',
+                'detalles.asignaciones.unidad.avances.etapa',
+                'detalles.asignaciones.unidad.planProducto.plan.avances.etapa',
             ]);
 
         if ($filtros['cliente_id']) {
@@ -70,7 +71,14 @@ class VentaController extends Controller
             );
         }
 
-        if ($filtros['estado']) {
+        if ($filtros['estado'] === 'confirmadas_pendientes') {
+            $implementos=Producto::whereHas('tipo',fn($q)=>$q->whereRaw('LOWER(TRIM(nombre)) = ?', ['implemento']))->pluck('id')->all();
+            $consulta->where('estado','confirmada')->where(function($q)use($implementos){
+                // Una entrega parcial mantiene la venta pendiente. Accesorios no requieren chasis propio.
+                $q->whereDoesntHave('detalles',fn($d)=>$d->whereIn('producto_id',$implementos))
+                  ->orWhereHas('detalles',fn($d)=>$d->whereIn('producto_id',$implementos)->whereRaw("cantidad > (select count(distinct va.unidad_produccion_id) from venta_asignacions va join unidades_produccion u on u.id = va.unidad_produccion_id where va.venta_detalle_id = venta_detalles.id and va.estado in ('reservada','asignada') and (u.estado = 'entregada' or exists (select 1 from avances_produccion ap join etapas_produccion ep on ep.id = ap.etapa_id where ap.unidad_produccion_id = u.id and ap.estado = 'completada' and ep.codigo = 'ENTREGADO')))") );
+            });
+        } elseif ($filtros['estado']) {
             $consulta->where('estado', $filtros['estado']);
         }
 
@@ -120,7 +128,11 @@ class VentaController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        $estimadorVentas = new \App\Services\EstimadorEntrega;
         foreach ($ventas as $venta) {
+            foreach($venta->detalles as $detalle)foreach($detalle->asignaciones as $a){
+                if($a->unidad && in_array($a->estado,['reservada','asignada']))$a->unidad->setAttribute('estimacion_entrega',$estimadorVentas->calcular($a->unidad));
+            }
             $venta->setRelation(
                 'detalles',
                 $venta->detalles
@@ -301,6 +313,7 @@ class VentaController extends Controller
                 'date',
             ],
 
+            'fecha_entrega_pactada' => ['nullable','date'],
             'estado' => [
                 'required',
                 'string',
@@ -355,6 +368,7 @@ class VentaController extends Controller
             $venta = Venta::create([
                 'cliente_id' => $datos['cliente_id'],
                 'fecha' => $datos['fecha'],
+                'fecha_entrega_pactada' => $datos['fecha_entrega_pactada'] ?? null,
                 'estado' => $datos['estado'],
                 'observaciones' => $datos['observaciones'] ?? null,
                 'total' => 0,
@@ -519,6 +533,7 @@ class VentaController extends Controller
         $datos = $request->validate([
             'cliente_id' => ['required', 'integer', 'exists:clientes,id'],
             'fecha' => ['required', 'date'],
+            'fecha_entrega_pactada' => ['nullable','date'],
             'estado' => ['required', 'in:borrador,confirmada,entregada,anulada'],
             'observaciones' => ['nullable', 'string'],
 
@@ -538,6 +553,7 @@ class VentaController extends Controller
             $venta->update([
                 'cliente_id' => $datos['cliente_id'],
                 'fecha' => $datos['fecha'],
+                'fecha_entrega_pactada' => $datos['fecha_entrega_pactada'] ?? null,
                 'estado' => $datos['estado'],
                 'observaciones' => $datos['observaciones'] ?? null,
             ]);

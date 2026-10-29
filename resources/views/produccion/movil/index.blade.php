@@ -24,14 +24,7 @@
                         </div>
                         <canvas id="qr-canvas" hidden></canvas>
                         <div id="qr-mensaje" class="small mt-2" role="status" aria-live="polite"></div>
-                        <details class="mt-3"><summary class="text-primary" style="cursor:pointer">Leer una foto o pegar el contenido del QR</summary>
-                            <label for="qr-imagen" class="form-label mt-3">Foto del código QR</label>
-                            <input type="file" id="qr-imagen" accept="image/*" capture="environment" class="form-control">
-                            <p class="small text-muted mt-1">La imagen se procesa en este dispositivo; no se sube al servidor.</p>
-                            <label for="qr-texto" class="form-label">Contenido o enlace del QR</label>
-                            <input type="text" id="qr-texto" class="form-control" placeholder="Pegá aquí el enlace de la ficha" autocomplete="off">
-                            <button type="button" id="qr-abrir" class="btn btn-outline-primary w-100 mt-2">Cargar unidad del QR</button>
-                        </details>
+
                     </div>
                 </div>
 
@@ -111,13 +104,16 @@
                                 <div class="text-muted small">Estado</div>
 
                                 <span class="badge bg-primary fs-6">
-                                    {{ ucfirst(str_replace('_', ' ', $unidad->estado)) }}
+                                    {{ $unidad->estimacion_entrega['excluida'] ? $unidad->estimacion_entrega['texto'] : $unidad->estimacion_entrega['etapa'] }}
                                 </span>
                             </div>
 
+                            @if (!$unidad->estimacion_entrega['excluida'])
+                                <div class="small text-muted mb-3">{{ $unidad->estimacion_entrega['origen'] === 'plan' ? 'Etapa del plan' : 'Etapa del chasis' }}</div>
+                            @endif
                             @if ($etapaActual)
                                 <div class="alert alert-info">
-                                    <strong>Etapa actual:</strong>
+                                    <strong>{{ $etapaActual->estado === 'en_proceso' ? 'Avance individual en curso:' : 'Próximo avance individual:' }}</strong>
                                     {{ $etapaActual->etapa?->nombre ?? '-' }}
                                 </div>
                             @endif

@@ -71,6 +71,7 @@ class PlanProduccionController extends Controller
         }
 
         $consulta = PlanProduccion::with([
+            'avances.etapa',
             'planProductos.producto',
             'planProductos.unidadesProduccion.avances.etapa',
             'planProductos.unidadesProduccion.asignaciones' => fn ($query) => $query
@@ -139,12 +140,16 @@ class PlanProduccionController extends Controller
 
         $destinos = PlanProducto::whereIn('plan_produccion_id',$planes->pluck('id'))->where($filtrarLinea)->orderBy('id')->get(['id','plan_produccion_id'])->groupBy('plan_produccion_id');
 
+        $estimadorEstados = new \App\Services\EstimadorEntrega;
         foreach ($planes as $plan) {
             $plan->setAttribute('producto_destino_id', $destinos->get($plan->id)?->first()?->id);
             $resumenPlan = ['reservadas' => 0, 'asignadas' => 0, 'total' => 0];
             foreach ($plan->planProductos as $productoPlan) {
+                $productoPlan->setRelation('plan', $plan);
                 $resumen = ['reservadas' => 0, 'asignadas' => 0, 'total' => 0];
                 foreach ($productoPlan->unidadesProduccion as $unidadPlan) {
+                    $unidadPlan->setRelation('planProducto', $productoPlan);
+                    $unidadPlan->setAttribute('estimacion_entrega', $estimadorEstados->calcular($unidadPlan));
                     // Una unidad se cuenta una sola vez, por su vínculo activo más reciente.
                     $asignacion = $unidadPlan->asignaciones->first();
                     if ($asignacion) {

@@ -264,4 +264,10 @@
         </div>
 
     </div>
+<details class="border rounded p-3 mt-4 mb-4">
+    <summary class="text-muted" style="cursor:pointer">Administración del plan</summary>
+    <div class="mt-3">
+        <a href="{{ route('planes.estado.index', $plan) }}" class="btn btn-sm btn-outline-secondary">{{ $plan->estado === 'cancelado' ? 'Reactivar plan / historial' : 'Anular plan / historial' }}</a>
+    </div>
+</details>
 @endsection

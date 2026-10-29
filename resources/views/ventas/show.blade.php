@@ -79,6 +79,7 @@
                         </span>
                     </div>
 
+                    <div class="col-md-4"><strong>Entrega pactada / solicitada</strong><br>{{ $venta->fecha_entrega_pactada?->format('d/m/Y') ?? 'Sin definir' }}</div>
                     <div class="col-12">
                         <strong>Observaciones</strong><br>
                         {{ $venta->observaciones ?: '-' }}

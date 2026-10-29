@@ -112,8 +112,8 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Chasis</th>
-                                <th>Estado</th>
+                                <th>Chasis · etapa actual · entrega estimada</th>
+                                <th>Estado de venta</th>
                                 <th>Disponibilidad</th>
                                 <th>Entrega estimada</th>
                                 <th>Acción</th>
@@ -279,6 +279,7 @@
 
                             <select name="estado" id="estado" class="form-select">
                                 <option value="">Todos</option>
+                                <option value="confirmadas_pendientes" @selected(($filtros['estado'] ?? '') === 'confirmadas_pendientes')>Confirmadas pendientes de entrega</option>
                                 <option value="borrador" @selected(($filtros['estado'] ?? '') === 'borrador')>
                                     Borrador
                                 </option>
@@ -339,7 +340,7 @@
                             <tr>
                                 <th>N.º</th>
                                 <th>Cliente</th>
-                                <th>Fecha</th>
+                                <th>Fecha de venta</th><th>Entrega pactada / solicitada</th>
                                 <th>Productos</th>
                                 <th>Chasis</th>
                                 <th>Estado</th>
@@ -361,7 +362,7 @@
 
                                     <td>
                                         {{ $venta->fecha?->format('d/m/Y') ?? '-' }}
-                                    </td>
+                                    </td><td>{{ $venta->fecha_entrega_pactada?->format('d/m/Y') ?? 'Sin definir' }}</td>
 
                                     <td>
                                         @foreach ($venta->detalles as $detalle)
@@ -378,15 +379,16 @@
                                     </td>
 
                                     <td>
-                                        @foreach ($venta->detalles as $detalle)
-                                            @foreach ($detalle->asignaciones as $asignacion)
-                                                @if ($asignacion->unidad?->chasis)
-                                                    <span class="badge bg-dark mb-1">
-                                                        {{ $asignacion->unidad->chasis }}
-                                                    </span>
-                                                @endif
-                                            @endforeach
-                                        @endforeach
+                                        @php $vinculadas=$venta->detalles->flatMap(fn($d)=>$d->asignaciones)->filter(fn($a)=>$a->unidad && in_array($a->estado,['reservada','asignada'])); @endphp
+                                        @forelse ($vinculadas as $asignacion)
+                                            @php $u=$asignacion->unidad; $eta=$u->estimacion_entrega; @endphp
+                                            <div class="mb-2" style="min-width:210px">
+                                                <a href="{{ route('planes.productos.unidades.show',[$u->planProducto->plan,$u->planProducto,$u]) }}" class="badge bg-dark">Chasis {{ $u->chasis ?: 'Sin cargar' }}</a>
+                                                <span class="badge bg-secondary">{{ $eta['excluida'] ? $eta['texto'] : $eta['etapa'] }}</span>
+                                                <div class="small">Entrega estimada: {{ $eta['texto'] }}</div>
+                                                @if (!$eta['excluida'] && $eta['origen']==='plan')<div class="small text-muted">Etapa del plan</div>@endif
+                                            </div>
+                                        @empty<span class="text-muted">Sin chasis asignado</span>@endforelse
                                     </td>
 
                                     <td>
@@ -407,7 +409,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">
+                                    <td colspan="9" class="text-center text-muted py-4">
                                         No hay ventas registradas.
                                     </td>
                                 </tr>

@@ -34,7 +34,7 @@ class EstimadorEntrega {
         $unidad->loadMissing(['avances.etapa','planProducto.plan.avances.etapa']);
         $plan=$unidad->planProducto?->plan;
         $individual=$unidad->avances->whereIn('estado',['en_proceso','completada'])->sortByDesc(fn($a)=>$a->etapa?->orden ?? 0);
-        $generales=$plan?->avances->whereIn('estado',['en_proceso','completada'])->sortByDesc(fn($a)=>$a->etapa?->orden ?? 0) ?? collect();
+        $generales=$plan?->avances->whereIn('estado',['en_proceso','completada'])->sortByDesc(fn($a)=>array_search($a->etapa?->codigo,array_merge(['PLANIFICADO','LANZADO'],SectoresProduccion::CODIGOS),true)) ?? collect();
         $avance=$individual->first() ?? $generales->first();
         $etapa=$avance?->etapa ?? $this->planificado;
         $base=['explicacion'=>[], 'vencida'=>false, 'demoras_activas'=>[], 'origen'=>$individual->isNotEmpty() ? 'unidad' : 'plan', 'fecha'=>null,'etapa'=>$etapa?->nombre ?? 'Sin etapa','dias'=>null,'demora'=>false,'impacto'=>0,'original'=>$plan?->fecha_fin_planificada?->toDateString()];

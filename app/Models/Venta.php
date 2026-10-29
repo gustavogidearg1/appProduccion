@@ -17,6 +17,7 @@ class Venta extends Model
     protected $fillable = [
         'cliente_id',
         'fecha',
+        'fecha_entrega_pactada',
         'estado',
         'total',
         'observaciones',
@@ -25,6 +26,7 @@ class Venta extends Model
     protected $casts = [
         'cliente_id' => 'integer',
         'fecha' => 'date',
+        'fecha_entrega_pactada' => 'date',
         'total' => 'decimal:2',
     ];
 

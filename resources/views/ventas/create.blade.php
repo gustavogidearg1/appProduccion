@@ -121,6 +121,7 @@
                         </select>
                     </div>
 
+                    <div class="col-md-4"><label class="form-label" for="fecha_entrega_pactada">Entrega pactada / solicitada</label><input type="date" id="fecha_entrega_pactada" name="fecha_entrega_pactada" class="form-control" value="{{ old('fecha_entrega_pactada') }}"><div class="small text-muted">Opcional. Compromiso con el cliente; separado de la estimación de producción.</div></div>
                     <div class="col-12">
                         <label for="observaciones" class="form-label">
                             Observaciones

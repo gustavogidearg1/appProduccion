@@ -33,10 +33,11 @@
     @endif
 
     @if ($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
-    <p class="small text-muted">Podés corregir las fechas reales indicando un motivo. Sin fechas queda Pendiente; con solo inicio, En proceso; con inicio y fin, Completada. Las fechas planificadas se guardan por separado.</p>
+    <p class="small text-muted">Se trabaja por día, sin horario. Iniciar y Finalizar registran la fecha de hoy. Si informás el avance otro día, podés corregir las fechas reales indicando un motivo. Sin fechas queda Pendiente; con solo inicio, En proceso; con inicio y fin, Completada. Las fechas planificadas se guardan por separado.</p>
+    <div class="alert alert-info small">El Gantt global muestra Corte, Plegado, Mecanizado, Agropartes, Línea de montaje y Prepintura. Planificado y Lanzado conservan sus fechas como seguimiento. Corte y Mecanizado pueden iniciar en paralelo; Montaje requiere Mecanizado y Agropartes completos. Los avances individuales de cada chasis se mantienen por separado.</div>
     <div class="card shadow-sm">
         <div class="card-header">
-            <h4 class="mb-0">Etapas grupales</h4>
+            <h4 class="mb-0">Seguimiento y sectores del plan</h4>
         </div>
 
         <div class="card-body p-0">
@@ -62,11 +63,7 @@
                             @php
                                 $avance = $avances->get($etapa->id);
 
-                                $etapasAnteriores = $etapas->where(
-                                    'orden',
-                                    '<',
-                                    $etapa->orden
-                                );
+                                $etapasAnteriores = $etapas->whereIn('codigo', \App\Services\SectoresProduccion::previas($etapa->codigo));
 
                                 $puedeIniciar = $etapasAnteriores->every(
                                     function ($etapaAnterior) use ($avances) {
@@ -80,12 +77,12 @@
 
                                 $formPlanificacion = 'planificacion-etapa-' . $etapa->id;
                                 $formReales = 'reales-etapa-' . $etapa->id;
-                                $posteriores = $avances->filter(fn($a)=>$a->etapa?->orden>$etapa->orden && ($a->estado!=='pendiente' || $a->fecha_inicio || $a->fecha_fin));
+                                $posteriores = $avances->filter(fn($a)=>in_array($a->etapa?->codigo,\App\Services\SectoresProduccion::posteriores($etapa->codigo),true) && ($a->estado!=='pendiente' || $a->fecha_inicio || $a->fecha_fin));
                             @endphp
 
                             <tr>
                                 <td>
-                                    {{ $etapa->orden }}
+                                    {{ $loop->iteration }}
                                 </td>
 
                                 <td class="fw-semibold">
@@ -115,29 +112,29 @@
                                 <td>
                                     <input
                                         form="{{ $formPlanificacion }}"
-                                        type="datetime-local"
+                                        type="date"
                                         name="fecha_inicio_planificada"
                                         class="form-control form-control-sm"
-                                        value="{{ $avance?->fecha_inicio_planificada?->format('Y-m-d\TH:i') }}"
+                                        value="{{ $avance?->fecha_inicio_planificada?->format('Y-m-d') }}"
                                     >
                                 </td>
 
                                 <td>
                                     <input
                                         form="{{ $formPlanificacion }}"
-                                        type="datetime-local"
+                                        type="date"
                                         name="fecha_fin_planificada"
                                         class="form-control form-control-sm"
-                                        value="{{ $avance?->fecha_fin_planificada?->format('Y-m-d\TH:i') }}"
+                                        value="{{ $avance?->fecha_fin_planificada?->format('Y-m-d') }}"
                                     >
                                 </td>
 
                                 <td>
-                                    <input type="datetime-local" step="1" form="{{ $formReales }}" name="fecha_inicio" aria-label="Inicio real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ $avance?->fecha_inicio?->format('Y-m-d\TH:i:s') }}">
+                                    <input type="date" form="{{ $formReales }}" name="fecha_inicio" aria-label="Inicio real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ $avance?->fecha_inicio?->format('Y-m-d') }}">
                                 </td>
 
                                 <td>
-                                    <input type="datetime-local" step="1" form="{{ $formReales }}" name="fecha_fin" aria-label="Fin real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ $avance?->fecha_fin?->format('Y-m-d\TH:i:s') }}">
+                                    <input type="date" form="{{ $formReales }}" name="fecha_fin" aria-label="Fin real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ $avance?->fecha_fin?->format('Y-m-d') }}">
                                 </td>
 
                                 <td>
@@ -162,7 +159,7 @@
                                         <form id="{{ $formReales }}" method="POST" action="{{ route('planes.avances.reales',[$plan,$etapa]) }}" class="mt-2">@csrf @method('PUT')
                                             <input type="hidden" name="version" value="{{ $versionReales }}">
                                             <label class="small">Motivo de la corrección<textarea name="motivo" class="form-control form-control-sm" required maxlength="5000"></textarea></label>
-                                            @if ($posteriores->isNotEmpty())<label class="small d-block mt-2"><input type="checkbox" name="reiniciar_posteriores" value="1"> Si quito el fin real, confirmo devolver las etapas generales posteriores a pendiente y quitar sus fechas reales. Los avances individuales no se modifican.</label>@endif
+                                            @if ($posteriores->isNotEmpty())<label class="small d-block mt-2"><input type="checkbox" name="reiniciar_posteriores" value="1"> Si quito el fin real, confirmo devolver las sectores dependientes a pendiente y quitar sus fechas reales. Los avances individuales no se modifican.</label>@endif
                                             <button class="btn btn-sm btn-warning mt-2">Guardar fechas reales</button>
                                         </form>
                                     </details>

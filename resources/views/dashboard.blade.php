@@ -5,6 +5,8 @@
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4"><div><h1 class="fw-bold">Tablero de producción</h1><p class="text-muted mb-0">Estados reales, compromiso comercial y planificación</p></div><span class="badge bg-success">Datos del sistema · {{ $hoy->format('d/m/Y') }}</span></div>
 @include('planificacion.mensajes')
 <form method="GET" action="{{ route('dashboard') }}" class="card mb-4"><div class="card-body row g-3 align-items-end">
+@foreach (['sector_gantt','plan_gantt','situacion_gantt'] as $clave)@if (!empty($filtros[$clave]))<input type="hidden" name="{{ $clave }}" value="{{ $filtros[$clave] }}">@endif @endforeach
+
 <div class="col-md-3"><label class="form-label" for="estado-tablero">Estado del plan</label><select class="form-select" name="estado" id="estado-tablero"><option value="">Todos</option>@foreach (['abierto'=>'Abierto','cerrado'=>'Cerrado','cancelado'=>'Cancelado'] as $valor=>$nombre)<option value="{{ $valor }}" @selected(($filtros['estado'] ?? '')===$valor)>{{ $nombre }}</option>@endforeach</select></div>
 <div class="col-md-3"><label class="form-label" for="desde-gantt">Gantt desde</label><input type="date" name="desde" id="desde-gantt" class="form-control" value="{{ $filtros['desde'] }}" required></div>
 <div class="col-md-3"><label class="form-label" for="hasta-gantt">Gantt hasta</label><input type="date" name="hasta" id="hasta-gantt" class="form-control" value="{{ $filtros['hasta'] }}" required></div>
@@ -38,21 +40,9 @@
 <style>
 .gantt-scroll{overflow:auto;max-height:680px;border:1px solid #dee2e6;border-radius:6px}.gantt-table{border-collapse:separate;border-spacing:0;table-layout:fixed}.gantt-table th,.gantt-table td{border-bottom:1px solid #dee2e6;padding:0;vertical-align:top}.gantt-label{width:290px;min-width:290px;position:sticky;left:0;background:#fff;z-index:3;padding:10px!important}.gantt-axis{position:sticky;top:0;z-index:5;background:#f8f9fa}.gantt-months,.gantt-days{display:flex}.gantt-months span{font-size:12px;font-weight:600;border-right:1px solid #ddd;padding:6px}.gantt-days span{width:26px;flex:0 0 26px;text-align:center;font-size:10px;border-right:1px solid #eee;padding:3px 0}.gantt-timeline{position:relative;background:repeating-linear-gradient(to right,transparent 0,transparent 25px,#eee 25px,#eee 26px);min-height:96px}.gantt-track{height:28px;position:relative}.gantt-bar{position:absolute;height:16px;top:6px;border-radius:3px;min-width:7px}.gantt-bar.plan{background:#0d6efd}.gantt-bar.real{background:#198754}.gantt-bar.estimate{background:#6f42c1}.gantt-bar.point{border-radius:50%;width:12px!important;margin-left:7px}.gantt-bar.ongoing{background:repeating-linear-gradient(45deg,#198754,#198754 6px,#45a87c 6px,#45a87c 10px)}.gantt-today{position:absolute;border-left:2px solid #dc3545;top:0;bottom:0;pointer-events:none;z-index:2}.gantt-empty{font-size:10px;color:#6c757d;line-height:28px;padding-left:5px}.gantt-detail{margin:0}.gantt-detail summary{cursor:pointer;padding:10px;background:#f8f9fa}.gantt-subtitle{font-size:11px;color:#6c757d}.gantt-legend span{white-space:nowrap;margin-right:15px;font-size:13px}.gantt-swatch{display:inline-block;width:18px;height:9px;margin-right:5px}.gantt-weekend{background:#eceff1}
 </style>
-<div class="card shadow-sm mb-4"><div class="card-header"><h2 class="h5 mb-0">Gantt · Planificado y real</h2></div><div class="card-body">
-<div class="gantt-legend mb-2"><span><i class="gantt-swatch" style="background:#0d6efd"></i>Planificado</span><span><i class="gantt-swatch" style="background:#198754"></i>Real registrado</span><span><i class="gantt-swatch" style="background:#6f42c1"></i>Estimación de disponibilidad</span><span class="text-danger">│ Hoy</span></div>
-<p class="small text-muted">Abrí un plan para ver sus etapas generales y la etapa actual de cada chasis. Una fecha sola se muestra como punto. Las fechas ausentes no se completan automáticamente. La barra real resume actividad registrada y no implica que el plan haya finalizado. La estimación comercial se muestra como punto, separada de la planificación.</p>
-<div class="gantt-scroll"><table class="gantt-table" style="width:{{ $ancho+290 }}px"><colgroup><col style="width:290px"><col style="width:{{ $ancho }}px"></colgroup><thead><tr><th class="gantt-label gantt-axis">Plan / detalle</th><th class="gantt-axis"><div class="gantt-months">@foreach ($meses as $mes)<span style="width:{{ $mes['dias']*26 }}px;flex:0 0 {{ $mes['dias']*26 }}px">{{ $mes['nombre'] }}</span>@endforeach</div><div class="gantt-days">@foreach ($dias as $dia)<span class="{{ $dia['fin_semana'] ? 'gantt-weekend' : '' }} {{ $dia['hoy'] ? 'bg-danger text-white' : '' }}" title="{{ $dia['fecha'] }}">{{ $dia['texto'] }}</span>@endforeach</div></th></tr></thead><tbody>
-@forelse ($planes as $plan)
-@php
-    $fila=$gantt[$plan->id];
-@endphp
-<tr><td class="gantt-label"><a href="{{ route('planes.show',$plan) }}" class="fw-bold">Plan #{{ $plan->numero }}</a><div class="small">Con venta: {{ $plan->tablero['ventas']['total'] }} / {{ $plan->tablero['unidades'] }}</div><div class="gantt-subtitle">Azul: plan · Verde: real · Violeta: disponibilidad</div></td><td>@include('tablero.barras',['fila'=>$fila])</td></tr>
-<tr><td colspan="2"><details class="gantt-detail"><summary>Ver etapas y chasis del plan #{{ $plan->numero }}</summary><table class="gantt-table" style="width:{{ $ancho+290 }}px"><colgroup><col style="width:290px"><col style="width:{{ $ancho }}px"></colgroup><tbody>
-@foreach ($fila['detalle'] as $detalle)<tr><td class="gantt-label"><a href="{{ $detalle['url'] }}">{{ $detalle['nombre'] }}</a></td><td>@include('tablero.barras',['fila'=>$detalle])</td></tr>@endforeach
-</tbody></table></details></td></tr>
-@empty<tr><td colspan="2" class="p-4 text-muted">Sin planes para representar.</td></tr>@endforelse
-</tbody></table></div>
-<p class="small text-muted mt-2 mb-0">Tabla y Gantt muestran la misma página de planes. Los indicadores superiores resumen todos los planes del estado elegido.</p>
-</div></div>
+@if (config('produccion.mostrar_gantt_resumen', false))
+@include('tablero.resumen')
+@endif
+@include('tablero.etapas')
 {{ $planes->links('pagination::bootstrap-5') }}
 </div>@endsection

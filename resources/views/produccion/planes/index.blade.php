@@ -180,20 +180,7 @@
                                         @php
                                             $estadosPlan = $plan->planProductos
                                                 ->flatMap(fn($planProducto) => $planProducto->unidadesProduccion)
-                                                ->map(function ($unidad) {
-                                                    $avanceActual = $unidad->avances
-                                                        ->where('estado', 'en_proceso')
-                                                        ->sortBy(fn($avance) => $avance->etapa?->orden ?? 999)
-                                                        ->first();
-
-                                                    $ultimaEtapa = $unidad->avances
-                                                        ->where('estado', 'completada')
-                                                        ->sortByDesc(fn($avance) => $avance->etapa?->orden ?? 0)
-                                                        ->first();
-
-                                                    return $avanceActual?->etapa?->nombre ??
-                                                        ($ultimaEtapa?->etapa?->nombre ?? 'Planificada');
-                                                })
+                                                ->map(fn($unidad) => $unidad->estimacion_entrega['excluida'] ? $unidad->estimacion_entrega['texto'] : $unidad->estimacion_entrega['etapa'])
                                                 ->countBy();
                                         @endphp
 
@@ -228,7 +215,6 @@
                                         <a href="{{ ($plan->producto_destino_id ? route('planes.productos.unidades', [$plan, $plan->producto_destino_id]) : route('planes.show', $plan)) }}" class="btn btn-sm btn-primary">
                                             Ver
                                         </a>
-                                        <a href="{{ route('planes.estado.index',$plan) }}" class="btn btn-sm btn-outline-danger mt-1">{{ $plan->estado==='cancelado' ? 'Reactivar / historial' : 'Anular / historial' }}</a>
                                     </td>
                                 </tr>
                             @empty
