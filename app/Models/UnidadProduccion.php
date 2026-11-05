@@ -29,6 +29,8 @@ class UnidadProduccion extends Model
         'plan_producto_id' => 'integer',
         'numero_unidad' => 'integer',
         'cliente_id' => 'integer',
+        'calidad_revision_id' => 'integer',
+        'calidad_fijada_at' => 'datetime',
     ];
 
     public function planProducto(): BelongsTo

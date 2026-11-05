@@ -32,6 +32,8 @@ class AvanceProduccionController extends Controller
             ->get()
             ->keyBy('etapa_id');
 
+        $avances = \App\Services\AvancesUnidad::efectivos($unidad, $avances)->keyBy('etapa_id');
+
         $correcciones = \Illuminate\Support\Facades\DB::table('avances_correcciones')
             ->join('etapas_produccion','etapas_produccion.id','=','avances_correcciones.etapa_id')
             ->where('unidad_produccion_id',$unidad->id)->select('avances_correcciones.*','etapas_produccion.nombre as etapa_nombre')->orderByDesc('avances_correcciones.id')->paginate(20);
@@ -60,6 +62,7 @@ class AvanceProduccionController extends Controller
 
         $this->validarRelaciones($plan, $planProducto, $unidad);
         if ($etapa->codigo === 'ENTREGADO') return redirect()->route('entregas.index',$unidad);
+        if ($etapa->codigo === 'ARMADO' && \App\Services\AvancesUnidad::efectivos($unidad)->firstWhere('etapa_id',$etapa->id)?->heredado_plan) return redirect()->route('planes.avances',$plan)->with('error','Armado se registra desde Línea de montaje del plan.');
 
 
         if ($etapa->alcance !== 'unidad' || !$etapa->activo) {
@@ -74,10 +77,7 @@ class AvanceProduccionController extends Controller
             ->get();
 
         foreach ($etapasAnteriores as $etapaAnterior) {
-            $avanceAnterior = $unidad
-                ->avances()
-                ->where('etapa_id', $etapaAnterior->id)
-                ->first();
+            $avanceAnterior = \App\Services\AvancesUnidad::efectivos($unidad)->firstWhere('etapa_id', $etapaAnterior->id);
 
             if (!$avanceAnterior || $avanceAnterior->estado !== 'completada') {
                 return back()->with(
@@ -126,6 +126,7 @@ class AvanceProduccionController extends Controller
 
         $this->validarRelaciones($plan, $planProducto, $unidad);
         if ($etapa->codigo === 'ENTREGADO') return redirect()->route('entregas.index',$unidad);
+        if ($etapa->codigo === 'ARMADO' && \App\Services\AvancesUnidad::efectivos($unidad)->firstWhere('etapa_id',$etapa->id)?->heredado_plan) return redirect()->route('planes.avances',$plan)->with('error','Armado se registra desde Línea de montaje del plan.');
 
 
         if ($etapa->alcance !== 'unidad' || !$etapa->activo) {
@@ -145,18 +146,12 @@ class AvanceProduccionController extends Controller
         }
 
         if ($etapa->codigo === 'OK_CALIDAD') {
-            $controlesPendientes = UnidadControlCalidad::query()
-                ->where('unidad_produccion_id', $unidad->id)
-                ->whereHas('control', function ($query) {
-                    $query->where('obligatorio', true);
-                })
-                ->where('resultado', 'pendiente')
-                ->count();
+            $controlesPendientes = \App\Services\CalidadDocumental::pendientes($unidad)->count();
 
             if ($controlesPendientes > 0) {
                 return back()->with(
                     'error',
-                    'No se puede finalizar OK Calidad. Hay controles obligatorios pendientes.'
+                    'No se puede finalizar OK Calidad. Hay controles obligatorios pendientes u observados.'
                 );
             }
         }
@@ -220,7 +215,7 @@ class AvanceProduccionController extends Controller
 
         abort_unless($etapa->alcance==='plan' && $etapa->activo,404);
         $d=$request->validate(['fecha_inicio'=>['nullable','date'],'fecha_fin'=>['nullable','date'],
-            'motivo'=>['required','string','max:5000'],'version'=>['required','string','size:64'],
+            'motivo'=>['nullable','string','max:5000'],'version'=>['required','string','size:64'],
             'reiniciar_posteriores'=>['nullable','boolean']]);
         $inicio=!empty($d['fecha_inicio']) ? \Carbon\Carbon::parse($d['fecha_inicio'], \App\Services\EstimadorEntrega::ZONA)->startOfDay() : null;
         $fin=!empty($d['fecha_fin']) ? \Carbon\Carbon::parse($d['fecha_fin'], \App\Services\EstimadorEntrega::ZONA)->startOfDay() : null;
@@ -245,6 +240,13 @@ class AvanceProduccionController extends Controller
             }
             if($fin)foreach($posteriores as $a)if($a->fecha_inicio && $fin->toDateString() > $a->fecha_inicio->toDateString())$error('El fin supera el inicio de una etapa posterior. Corregí primero esa etapa.');
             $avance=$avances->firstWhere('etapa_id',$etapa->id);
+            $inicioAnterior=$avance?->fecha_inicio?->format('Y-m-d');
+            $finAnterior=$avance?->fecha_fin?->format('Y-m-d');
+            $corrige=($inicioAnterior && $inicioAnterior!==$inicio?->toDateString())
+                || ($finAnterior && $finAnterior!==$fin?->toDateString());
+            $motivo=trim($d['motivo']??'');
+            if($corrige && $motivo==='')$error('Indicá un motivo si cambiás o quitás una fecha real ya registrada.');
+            if($inicioAnterior===$inicio?->toDateString() && $finAnterior===$fin?->toDateString())return;
             $antes=['etapa'=>$avance?->getAttributes(),'posteriores'=>[]];
             if($estado!=='completada')foreach($posteriores as $a){$antes['posteriores'][]=$a->getAttributes();$a->update(['estado'=>'pendiente','fecha_inicio'=>null,'fecha_fin'=>null,'iniciado_por'=>null,'finalizado_por'=>null]);}
             $usuario=auth()->id();$local=$usuario && \Illuminate\Support\Facades\DB::table('users')->where('id',$usuario)->exists() ? $usuario : null;
@@ -253,10 +255,10 @@ class AvanceProduccionController extends Controller
                 'iniciado_por'=>$inicio ? ($avance->iniciado_por ?? $local) : null,
                 'finalizado_por'=>$fin ? ($avance->finalizado_por ?? $local) : null]);$avance->save();
             $nuevo=['etapa'=>$avance->getAttributes(),'posteriores'=>$plan->avances()->whereIn('id',$posteriores->pluck('id'))->get()->map(fn($a)=>$a->getAttributes())->all()];
-            \Illuminate\Support\Facades\DB::table('avances_plan_correcciones')->insert(['plan_produccion_id'=>$plan->id,'etapa_id'=>$etapa->id,'motivo'=>$d['motivo'],
+            \Illuminate\Support\Facades\DB::table('avances_plan_correcciones')->insert(['plan_produccion_id'=>$plan->id,'etapa_id'=>$etapa->id,'motivo'=>$motivo!=='' ? $motivo : 'Carga manual de fechas reales',
                 'responsable'=>auth()->user()?->name ?? 'Usuario autenticado','usuario_id'=>$usuario,'anterior'=>json_encode($antes),'nuevo'=>json_encode($nuevo),'created_at'=>now(),'updated_at'=>now()]);
         });
-        return back()->with('success','Fechas reales corregidas. Se conservaron las fechas planificadas y el historial.');
+        return back()->with('success','Fechas reales guardadas.');
     }
 
     public function updatePlan(

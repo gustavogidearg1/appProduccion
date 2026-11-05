@@ -27,8 +27,9 @@ class ProduccionMovilController extends Controller {
             }
             if($unidad){
                 $unidad->setAttribute('estimacion_entrega', (new \App\Services\EstimadorEntrega)->calcular($unidad));
-                $etapaActual=$unidad->avances->sortBy('etapa.orden')->first(fn($a)=>$a->estado!=='completada')
-                    ?? $unidad->avances->sortByDesc('etapa.orden')->first();
+                $efectivos=\App\Services\AvancesUnidad::efectivos($unidad);
+                $etapaActual=$efectivos->sortBy('etapa.orden')->first(fn($a)=>$a->estado!=='completada')
+                    ?? $efectivos->sortByDesc('etapa.orden')->first();
             }
         }
         return view('produccion.movil.index',compact('plan','unidad','etapaActual','mensaje'));

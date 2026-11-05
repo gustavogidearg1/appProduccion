@@ -260,6 +260,8 @@ class PlanProduccionController extends Controller
                 'min:0.01',
             ],
 
+            'chasis_inicial'=>['nullable','array'],
+            'chasis_inicial.*'=>['nullable','string','regex:/^[0-9]{1,12}$/'],
             'observaciones' => [
                 'nullable',
                 'array',
@@ -304,13 +306,14 @@ class PlanProduccionController extends Controller
             ]);
 
             foreach ($datos['producto_id'] as $indice => $productoId) {
-                PlanProducto::create([
+                $linea = PlanProducto::create([
                     'plan_produccion_id' => $plan->id,
                     'producto_id' => $productoId,
                     'cantidad' => $datos['cantidad'][$indice],
                     'observaciones' =>
                         $datos['observaciones'][$indice] ?? null,
                 ]);
+                if(isset($datos['chasis_inicial'][$indice]) && $datos['chasis_inicial'][$indice]!=='')\App\Services\GenerarUnidadesPlan::generar($plan,$linea,$datos['chasis_inicial'][$indice]);
             }
         });
 
@@ -521,113 +524,10 @@ class PlanProduccionController extends Controller
             );
     }
 
-    public function generarUnidades(
-        PlanProduccion $plan,
-        PlanProducto $planProducto
-    ) {
-        abort_if($plan->estado==='cancelado',422,'El plan está anulado. Reactivalo antes de modificarlo.');
-
-        if ($planProducto->plan_produccion_id !== $plan->id) {
-            abort(404);
-        }
-
-        $planProducto->load('producto');
-
-        $familiaId = $planProducto->producto?->familia_id;
-
-        $controlesFamilia = FamiliaControlCalidad::query()
-            ->where('familia_id', $familiaId)
-            ->where('activo', true)
-            ->orderBy('etapa_produccion_id')
-            ->orderBy('orden')
-            ->get();
-
-        $controlesProducto = collect();
-
-        if ($controlesFamilia->isEmpty()) {
-            $controlesProducto = ProductoControlCalidad::query()
-                ->where(
-                    'producto_id',
-                    $planProducto->producto_id
-                )
-                ->where('activo', true)
-                ->orderBy('orden')
-                ->get();
-        }
-
-        $cantidad = (float) $planProducto->cantidad;
-
-        if (
-            $cantidad <= 0 ||
-            floor($cantidad) !== $cantidad
-        ) {
-            return back()->with(
-                'error',
-                'La cantidad debe ser un número entero para generar unidades.'
-            );
-        }
-
-        $componentesEstandar = ProductoComponente::query()
-            ->where(
-                'producto_id',
-                $planProducto->producto_id
-            )
-            ->where('activo', true)
-            ->get();
-
-        $existentes = $planProducto
-            ->unidadesProduccion()
-            ->count();
-
-        for (
-            $numero = $existentes + 1;
-            $numero <= (int) $cantidad;
-            $numero++
-        ) {
-            $unidad = UnidadProduccion::create([
-                'plan_producto_id' => $planProducto->id,
-                'numero_unidad' => $numero,
-                'estado' => 'planificada',
-            ]);
-
-            foreach ($componentesEstandar as $componenteEstandar) {
-                UnidadComponente::create([
-                    'unidad_produccion_id' => $unidad->id,
-                    'producto_id' =>
-                        $componenteEstandar->componente_producto_id,
-                    'cantidad' => $componenteEstandar->cantidad,
-                    'estado' => 'pendiente',
-                    'uso' => $componenteEstandar->uso,
-                    'observaciones' =>
-                        $componenteEstandar->observaciones,
-                    'user_id' => auth()->id(),
-                ]);
-            }
-
-            foreach ($controlesFamilia as $controlFamilia) {
-                UnidadControlCalidad::create([
-                    'unidad_produccion_id' => $unidad->id,
-                    'control_calidad_id' =>
-                        $controlFamilia->control_calidad_id,
-                    'etapa_produccion_id' =>
-                        $controlFamilia->etapa_produccion_id,
-                    'resultado' => 'pendiente',
-                ]);
-            }
-
-            foreach ($controlesProducto as $controlProducto) {
-                UnidadControlCalidad::create([
-                    'unidad_produccion_id' => $unidad->id,
-                    'control_calidad_id' =>
-                        $controlProducto->control_calidad_id,
-                    'resultado' => 'pendiente',
-                ]);
-            }
-        }
-
-        return back()->with(
-            'success',
-            'Unidades, componentes y controles de calidad generados correctamente.'
-        );
+    public function generarUnidades(Request $request, PlanProduccion $plan, PlanProducto $planProducto)
+    {
+        $d=$request->validate(['chasis_inicial'=>['nullable','string','regex:/^[0-9]{1,12}$/'],'cantidad'=>['nullable','integer','min:1','max:10000']]);
+        \App\Services\GenerarUnidadesPlan::generar($plan,$planProducto,$d['chasis_inicial']??null,isset($d['cantidad'])?(int)$d['cantidad']:null);
+        return back()->with('success','Unidades, chasis, componentes y controles de calidad generados correctamente.');
     }
 }

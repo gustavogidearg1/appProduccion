@@ -71,8 +71,10 @@
                 @if ($planProducto->unidadesProduccion->isEmpty())
                     <form method="POST" action="{{ route('planes.productos.generar-unidades', [$plan, $planProducto]) }}" class="mt-3">
                         @csrf
+                        <div class="row g-3 mb-3"><div class="col-md-3"><label class="form-label w-100">Cantidad a generar<input class="form-control" type="number" min="1" max="10000" step="1" name="cantidad" value="{{ old('cantidad',(int)$planProducto->cantidad) }}" required></label></div><div class="col-md-3"><label class="form-label w-100">Chasis inicial (opcional)<input class="form-control" name="chasis_inicial" inputmode="numeric" pattern="[0-9]{1,12}" value="{{ old('chasis_inicial') }}" placeholder="Ej.: 20499"></label></div></div><p class="text-primary" id="rango-generacion" aria-live="polite"></p><p class="small text-muted">Si corregís la cantidad, también se actualizará la cantidad del producto en el plan. Sin chasis inicial, las unidades se generan sin numerar.</p>
                         <button type="submit" class="btn btn-primary">Generar unidades</button>
                     </form>
+                    <script>document.addEventListener('DOMContentLoaded',()=>{const out=document.getElementById('rango-generacion');const f=out.closest('form')||out.parentElement.querySelector('form');const inicio=f.querySelector('[name="chasis_inicial"]');const cantidad=f.querySelector('[name="cantidad"]');function mostrar(){const n=Number(cantidad.value);out.textContent=inicio.value && Number.isInteger(n)&&n>0?`${n} unidades: chasis ${inicio.value} a ${String(Number(inicio.value)+n-1).padStart(inicio.value.length,'0')}`:'';}f.addEventListener('input',mostrar);mostrar();});</script>
                 @endif
             </div>
         </div>

@@ -13,6 +13,7 @@ class ControlCalidad extends Model
     protected $table = 'controles_calidad';
 
     protected $fillable = [
+    'calidad_seccion_id',
     'nombre',
     'descripcion',
     'tipo_respuesta',
@@ -26,6 +27,8 @@ class ControlCalidad extends Model
     'obligatorio' => 'boolean',
     'activo' => 'boolean',
 ];
+
+    public function seccion(){return $this->belongsTo(CalidadSeccion::class,'calidad_seccion_id');}
 
     public function productos(): HasMany
     {

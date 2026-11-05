@@ -33,8 +33,24 @@
     @endif
 
     @if ($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
-    <p class="small text-muted">Se trabaja por día, sin horario. Iniciar y Finalizar registran la fecha de hoy. Si informás el avance otro día, podés corregir las fechas reales indicando un motivo. Sin fechas queda Pendiente; con solo inicio, En proceso; con inicio y fin, Completada. Las fechas planificadas se guardan por separado.</p>
-    <div class="alert alert-info small">El Gantt global muestra Corte, Plegado, Mecanizado, Agropartes, Línea de montaje y Prepintura. Planificado y Lanzado conservan sus fechas como seguimiento. Corte y Mecanizado pueden iniciar en paralelo; Montaje requiere Mecanizado y Agropartes completos. Los avances individuales de cada chasis se mantienen por separado.</div>
+    @php
+        $mostrarTodas = request()->query('etapas') === 'todas';
+        $ordenEtapas = $etapas->values()->pluck('id')->flip();
+        $etapasVisibles = $mostrarTodas
+            ? $etapas
+            : $etapas->reject(fn ($etapa) => $avances->get($etapa->id)?->estado === 'completada');
+    @endphp
+
+    <nav class="d-flex align-items-center flex-wrap gap-2 mb-3" aria-label="Filtro de etapas">
+        <span class="fw-semibold">Mostrar etapas</span>
+        <a href="{{ request()->fullUrlWithQuery(['etapas' => 'activas']) }}"
+           class="btn btn-sm {{ $mostrarTodas ? 'btn-outline-primary' : 'btn-primary' }}"
+           @if (!$mostrarTodas) aria-current="true" @endif>Pendientes y en proceso</a>
+        <a href="{{ request()->fullUrlWithQuery(['etapas' => 'todas']) }}"
+           class="btn btn-sm {{ $mostrarTodas ? 'btn-primary' : 'btn-outline-primary' }}"
+           @if ($mostrarTodas) aria-current="true" @endif>Mostrar todos</a>
+    </nav>
+
     <div class="card shadow-sm">
         <div class="card-header">
             <h4 class="mb-0">Seguimiento y sectores del plan</h4>
@@ -58,7 +74,7 @@
                     </thead>
 
                     <tbody>
-                        @forelse($etapas as $etapa)
+                        @forelse($etapasVisibles as $etapa)
 
                             @php
                                 $avance = $avances->get($etapa->id);
@@ -82,7 +98,7 @@
 
                             <tr>
                                 <td>
-                                    {{ $loop->iteration }}
+                                    {{ $ordenEtapas->get($etapa->id) + 1 }}
                                 </td>
 
                                 <td class="fw-semibold">
@@ -130,11 +146,11 @@
                                 </td>
 
                                 <td>
-                                    <input type="date" form="{{ $formReales }}" name="fecha_inicio" aria-label="Inicio real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ $avance?->fecha_inicio?->format('Y-m-d') }}">
+                                    <input type="date" form="{{ $formReales }}" name="fecha_inicio" aria-label="Inicio real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ (string) old('etapa_real') === (string) $etapa->id ? old('fecha_inicio') : $avance?->fecha_inicio?->format('Y-m-d') }}">
                                 </td>
 
                                 <td>
-                                    <input type="date" form="{{ $formReales }}" name="fecha_fin" aria-label="Fin real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ $avance?->fecha_fin?->format('Y-m-d') }}">
+                                    <input type="date" form="{{ $formReales }}" name="fecha_fin" aria-label="Fin real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ (string) old('etapa_real') === (string) $etapa->id ? old('fecha_fin') : $avance?->fecha_fin?->format('Y-m-d') }}">
                                 </td>
 
                                 <td>
@@ -151,18 +167,25 @@
                                             type="submit"
                                             class="btn btn-sm btn-outline-primary"
                                         >
-                                            Guardar fechas
+                                            Guardar planificación
                                         </button>
                                     </form>
 
-                                    <details class="mb-2" style="min-width:190px"><summary class="text-warning-emphasis" style="cursor:pointer">Guardar corrección real</summary>
-                                        <form id="{{ $formReales }}" method="POST" action="{{ route('planes.avances.reales',[$plan,$etapa]) }}" class="mt-2">@csrf @method('PUT')
-                                            <input type="hidden" name="version" value="{{ $versionReales }}">
-                                            <label class="small">Motivo de la corrección<textarea name="motivo" class="form-control form-control-sm" required maxlength="5000"></textarea></label>
-                                            @if ($posteriores->isNotEmpty())<label class="small d-block mt-2"><input type="checkbox" name="reiniciar_posteriores" value="1"> Si quito el fin real, confirmo devolver las sectores dependientes a pendiente y quitar sus fechas reales. Los avances individuales no se modifican.</label>@endif
-                                            <button class="btn btn-sm btn-warning mt-2">Guardar fechas reales</button>
-                                        </form>
-                                    </details>
+                                    <form id="{{ $formReales }}" method="POST" action="{{ route('planes.avances.reales',[$plan,$etapa]) }}" class="mb-2">
+                                        @csrf @method('PUT')
+                                        <input type="hidden" name="version" value="{{ $versionReales }}">
+                                        <input type="hidden" name="etapa_real" value="{{ $etapa->id }}">
+                                        @if ($avance?->fecha_inicio || $avance?->fecha_fin)
+                                            <details class="mb-2" @if ((string) old('etapa_real') === (string) $etapa->id) open @endif>
+                                                <summary>Motivo si corregís una fecha</summary>
+                                                <textarea name="motivo" aria-label="Motivo de la corrección de {{ $etapa->nombre }}" class="form-control form-control-sm" maxlength="5000">{{ (string) old('etapa_real') === (string) $etapa->id ? old('motivo') : '' }}</textarea>
+                                                @if ($posteriores->isNotEmpty())
+                                                    <label class="small d-block mt-2"><input type="checkbox" name="reiniciar_posteriores" value="1"> Si quito el fin real, confirmo devolver las etapas dependientes a pendiente.</label>
+                                                @endif
+                                            </details>
+                                        @endif
+                                        <button class="btn btn-sm btn-outline-success">Guardar fechas reales</button>
+                                    </form>
                                     @if(!$avance || $avance->estado === 'pendiente')
 
                                         @if($puedeIniciar)
@@ -215,7 +238,7 @@
                                     colspan="8"
                                     class="text-center py-4 text-muted"
                                 >
-                                    No hay etapas grupales configuradas.
+                                    {{ $etapas->isEmpty() ? 'No hay etapas grupales configuradas.' : 'Todas las etapas están completadas.' }}
                                 </td>
                             </tr>
                         @endforelse
@@ -239,7 +262,11 @@
 @if (!empty($antes['posteriores']))<p>Se reiniciaron {{ count($antes['posteriores']) }} etapas generales. Fechas anteriores:</p>@foreach ($antes['posteriores'] as $a)<div class="small">Etapa #{{ $a['etapa_id'] }} · {{ $a['estado'] }} · {{ $a['fecha_inicio'] ?? '-' }} → {{ $a['fecha_fin'] ?? '-' }}</div>@endforeach @endif
 </details>
 @empty<p class="text-muted mb-0">No hay correcciones registradas.</p>@endforelse
-{{ $correccionesPlan->links('pagination::bootstrap-5') }}
+{{ $correccionesPlan->appends(request()->only('etapas'))->links('pagination::bootstrap-5') }}
 </div></div>
+    <div class="mt-4">
+    <p class="small text-muted">Se trabaja por día, sin horario. Iniciar y Finalizar registran la fecha de hoy. Para cargar un avance histórico, completá Inicio real y Fin real y elegí Guardar fechas reales. Solo se pide motivo al cambiar o quitar una fecha ya registrada. Sin fechas queda Pendiente; con solo inicio, En proceso; con inicio y fin, Completada. Las fechas planificadas se guardan por separado.</p>
+    <div class="alert alert-info small">El Gantt global muestra Corte, Plegado, Mecanizado, Agropartes, Línea de montaje y Prepintura. Planificado y Lanzado conservan sus fechas como seguimiento. Corte y Mecanizado pueden iniciar en paralelo; Montaje requiere Mecanizado y Agropartes completos. Los avances individuales de cada chasis se mantienen por separado.</div>
+    </div>
 </div>
 @endsection

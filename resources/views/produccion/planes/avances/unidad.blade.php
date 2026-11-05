@@ -113,14 +113,17 @@
                             </td>
 
                             <td>
-                                {{ $avance?->fecha_inicio?->format('d/m/Y H:i') ?? '-' }}
+                                {{ $avance?->fecha_inicio?->format('d/m/Y') ?? '-' }}
                             </td>
 
                             <td>
-                                {{ $avance?->fecha_fin?->format('d/m/Y H:i') ?? '-' }}
+                                {{ $avance?->fecha_fin?->format('d/m/Y') ?? '-' }}
                             </td>
 
                             <td>
+@if ($avance?->heredado_plan)
+                                    <a href="{{ route('planes.avances',$plan) }}" class="btn btn-sm btn-outline-secondary">Desde Línea de montaje del plan</a>
+                                @else
                                 <a href="{{ route('avances.correccion.edit',[$plan,$planProducto,$unidad,$etapa]) }}" class="btn btn-sm btn-outline-warning mb-2">Corregir avance</a>
                                 @if (!$avance || $avance->estado === 'pendiente')
 
@@ -162,6 +165,7 @@
                                     <span class="text-success">
                                         Cerrada
                                     </span>
+                                @endif
                                 @endif
                             </td>
                         </tr>
@@ -238,13 +242,16 @@
 
                         <div class="small text-muted mb-3">
                             Inicio:
-                            {{ $avance?->fecha_inicio?->format('d/m/Y H:i') ?? '-' }}
+                            {{ $avance?->fecha_inicio?->format('d/m/Y') ?? '-' }}
                             <br>
 
                             Finalización:
-                            {{ $avance?->fecha_fin?->format('d/m/Y H:i') ?? '-' }}
+                            {{ $avance?->fecha_fin?->format('d/m/Y') ?? '-' }}
                         </div>
 
+@if ($avance?->heredado_plan)
+                                    <a href="{{ route('planes.avances',$plan) }}" class="btn btn-sm btn-outline-secondary">Desde Línea de montaje del plan</a>
+                                @else
                         <a href="{{ route('avances.correccion.edit',[$plan,$planProducto,$unidad,$etapa]) }}" class="btn btn-outline-warning mb-2">Corregir avance</a>
                         @if (!$avance || $avance->estado === 'pendiente')
 
@@ -289,6 +296,7 @@
                                 Etapa cerrada
                             </div>
                         @endif
+                                @endif
 
                     </div>
                 @empty

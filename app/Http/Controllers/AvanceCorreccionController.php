@@ -20,6 +20,7 @@ class AvanceCorreccionController extends Controller {
     }
     public function edit(PlanProduccion $plan,PlanProducto $planProducto,UnidadProduccion $unidad,EtapaProduccion $etapa) {
         $this->validar($plan,$planProducto,$unidad,$etapa);
+        abort_if($etapa->codigo==='ARMADO' && \App\Services\AvancesUnidad::efectivos($unidad)->firstWhere('etapa_id',$etapa->id)?->heredado_plan,422,'Armado proviene de Línea de montaje. Corregí sus fechas desde los avances del plan.');
         $planProducto->load('producto');
         $avances=$unidad->avances()->with('etapa')->get();
         $avance=$avances->firstWhere('etapa_id',$etapa->id);
@@ -32,6 +33,7 @@ class AvanceCorreccionController extends Controller {
         abort_if($plan->estado==='cancelado',422,'El plan está anulado. Reactivalo antes de corregir avances.');
 
         $this->validar($plan,$planProducto,$unidad,$etapa);
+        abort_if($etapa->codigo==='ARMADO' && \App\Services\AvancesUnidad::efectivos($unidad)->firstWhere('etapa_id',$etapa->id)?->heredado_plan,422,'Armado proviene de Línea de montaje. Corregí sus fechas desde los avances del plan.');
         $d=$r->validate([
             'estado'=>['required','in:pendiente,en_proceso,completada'],
             'fecha_inicio'=>['nullable','date'], 'fecha_fin'=>['nullable','date'],
@@ -60,14 +62,14 @@ class AvanceCorreccionController extends Controller {
             if($d['estado']!=='pendiente') {
                 $previas=EtapaProduccion::where('activo',true)->where('alcance','unidad')->where('orden','<',$etapa->orden)->get();
                 foreach($previas as $previa){
-                    $a=$avances->firstWhere('etapa_id',$previa->id);
+                    $a=\App\Services\AvancesUnidad::efectivos($unidad,$avances)->firstWhere('etapa_id',$previa->id);
                     if(!$a || $a->estado!=='completada') $error('Debe completarse '.$previa->nombre.' antes de avanzar esta etapa.');
                     if($a->fecha_fin && $inicio->lt($a->fecha_fin)) $error('El inicio no puede ser anterior a la finalización de '.$previa->nombre.'.');
                 }
             }
             if($d['estado']==='completada'){
                 foreach($posteriores as $a) if($a->fecha_inicio && $fin->gt($a->fecha_inicio)) $error('La finalización no puede superar el inicio de una etapa posterior. Corregí primero las fechas posteriores.');
-                if($etapa->codigo==='OK_CALIDAD' && UnidadControlCalidad::where('unidad_produccion_id',$unidad->id)->where('resultado','pendiente')->whereHas('control',fn($q)=>$q->where('obligatorio',true))->exists()) $error('Hay controles de calidad obligatorios pendientes.');
+                if($etapa->codigo==='OK_CALIDAD' && \App\Services\CalidadDocumental::pendientes($unidad)->isNotEmpty()) $error('Hay controles de calidad obligatorios pendientes.');
             }
             $antes=['estado_unidad'=>$unidad->estado,'etapa'=>$avance?->getAttributes(), 'posteriores'=>[]];
             if($d['estado']!=='completada') {

@@ -1,0 +1,13 @@
+<input type="hidden" name="version" value="{{ $version }}"><input type="hidden" name="accion" value="item">
+@if ($indice !== null)<input type="hidden" name="indice" value="{{ $indice }}">@endif
+<div class="row g-2">
+<div class="col-12"><label class="form-label w-100">Punto a controlar<input class="form-control" name="nombre" value="{{ $item['nombre'] ?? '' }}" maxlength="1000" required></label></div>
+<div class="col-12"><label class="form-label w-100">Sección<input class="form-control" name="seccion" list="secciones-planilla" value="{{ $item['seccion'] ?? '' }}" maxlength="255" required></label></div>
+<div class="col-md-3"><label class="form-label w-100">Etapa<select class="form-select" name="etapa_id" required>@foreach ($etapas as $etapa)<option value="{{ $etapa->id }}" @selected(($item['etapa_id'] ?? null)==$etapa->id)>{{ $etapa->nombre }}</option>@endforeach</select></label></div>
+<div class="col-md-3"><label class="form-label w-100">Tipo<select class="form-select" name="tipo_respuesta">@foreach (['si_no'=>'Verificación','valor'=>'Medición','texto'=>'Texto / número de serie'] as $v=>$n)<option value="{{ $v }}" @selected(($item['tipo_respuesta'] ?? '')===$v)>{{ $n }}</option>@endforeach</select></label></div>
+<div class="col-md-3"><label class="form-label w-100">Unidad<input class="form-control" name="unidad_medida" value="{{ $item['unidad_medida'] ?? '' }}"></label></div>
+<div class="col-md-3"><label class="form-label w-100">Mínimo<input class="form-control" name="min" type="number" step="any" value="{{ $item['min'] ?? '' }}"></label></div>
+<div class="col-md-3"><label class="form-label w-100">Máximo<input class="form-control" name="max" type="number" step="any" value="{{ $item['max'] ?? '' }}"></label></div>
+<div class="col-md-6"><label class="form-label w-100">Instrucción / criterio<textarea class="form-control" name="descripcion" rows="3">{{ $item['descripcion'] ?? '' }}</textarea><span class="form-text d-block">Cómo realizar el control y qué resultado se considera correcto. Puede incluir el método, la tolerancia o una referencia al plano.</span></label></div>
+<div class="col-md-6"><label class="form-label w-100">Detalle / cuándo aplica<input class="form-control" name="condicion" value="{{ $item['condicion'] ?? '' }}"><span class="form-text d-block">Detalle adicional o condiciones de aplicación del control. Opcional y válido para cualquier familia.</span></label><label class="d-block"><input type="checkbox" name="obligatorio" value="1" @checked($item['obligatorio'] ?? true)> Obligatorio cuando aplica</label></div>
+</div><button class="btn btn-primary mt-2">Guardar ítem</button>

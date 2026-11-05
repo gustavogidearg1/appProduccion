@@ -18,7 +18,7 @@ class EntregaUnidadController extends Controller {
         $fotos=$entrega ? DB::table('entrega_fotos')->where('entrega_id',$entrega->id)->get() : collect();
         $asignacion=$unidad->asignaciones()->whereIn('estado',['reservada','asignada'])->whereHas('detalle.venta',fn($q)=>$q->where('estado','!=','anulada'))->with('detalle.venta.cliente')->latest('id')->first();
         $pendientes=EtapaProduccion::where('activo',true)->where('alcance','unidad')->where('codigo','!=','ENTREGADO')
-            ->whereNotIn('id',$unidad->avances->where('estado','completada')->pluck('etapa_id'))->orderBy('orden')->get();
+            ->whereNotIn('id',\App\Services\AvancesUnidad::efectivos($unidad)->where('estado','completada')->pluck('etapa_id'))->orderBy('orden')->get();
         $avanceEntrega = $unidad->avances->first(fn ($a) => $a->etapa?->codigo === 'ENTREGADO');
         $entregaAnterior = !$entrega && ($unidad->estado === 'entregada' || $avanceEntrega?->estado === 'completada');
         return view('planificacion.entrega',compact('unidad','entrega','fotos','asignacion','pendientes','avanceEntrega','entregaAnterior'));
@@ -91,8 +91,9 @@ class EntregaUnidadController extends Controller {
                     throw ValidationException::withMessages(['entrega'=>'La unidad ya fue entregada o está cancelada.']);
                 $etapa=EtapaProduccion::where('codigo','ENTREGADO')->where('activo',true)->where('alcance','unidad')->firstOrFail();
                 $pendientes=EtapaProduccion::where('activo',true)->where('alcance','unidad')->where('orden','<',$etapa->orden)
-                    ->whereNotIn('id',$unidad->avances()->where('estado','completada')->pluck('etapa_id'))->exists();
+                    ->whereNotIn('id',\App\Services\AvancesUnidad::efectivos($unidad, $unidad->avances()->with('etapa')->get())->where('estado','completada')->pluck('etapa_id'))->exists();
                 if($pendientes) throw ValidationException::withMessages(['entrega'=>'Completá las etapas anteriores, incluido OK Calidad, antes de confirmar la entrega.']);
+                if(\App\Services\CalidadDocumental::pendientes($unidad)->isNotEmpty())throw ValidationException::withMessages(['entrega'=>'Hay controles obligatorios pendientes u observados. Revisá Calidad antes de entregar.']);
                 $asignacion=$unidad->asignaciones()->whereIn('estado',['reservada','asignada'])->latest('id')->first();
                 if(!$asignacion) throw ValidationException::withMessages(['entrega'=>'La unidad no tiene una venta asignada.']);
                 $venta=Venta::whereKey($asignacion->detalle->venta_id)->lockForUpdate()->firstOrFail();

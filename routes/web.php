@@ -291,3 +291,29 @@ Route::middleware('auth')->group(function () {
 });
 
 require __DIR__ . '/auth.php';
+
+Route::middleware('auth')->group(function(){
+ Route::get('/calidad/familias/{familia}/planilla',[\App\Http\Controllers\PlanillaCalidadController::class,'index'])->name('calidad.documentos.index');
+ Route::post('/calidad/familias/{familia}/planilla',[\App\Http\Controllers\PlanillaCalidadController::class,'crear'])->name('calidad.documentos.crear');
+ Route::post('/calidad/familias/{familia}/planilla/nueva',[\App\Http\Controllers\PlanillaCalidadController::class,'nueva'])->name('calidad.documentos.nueva');
+ Route::get('/calidad/familias/{familia}/planilla/{revision}',[\App\Http\Controllers\PlanillaCalidadController::class,'edit'])->name('calidad.documentos.edit');
+ Route::post('/calidad/familias/{familia}/planilla/{revision}',[\App\Http\Controllers\PlanillaCalidadController::class,'guardar'])->name('calidad.documentos.guardar');
+ Route::post('/calidad/familias/{familia}/planilla/{revision}/publicar',[\App\Http\Controllers\PlanillaCalidadController::class,'publicar'])->name('calidad.documentos.publicar');
+ Route::get('/calidad/familias/{familia}/planilla/{revision}/imprimir',[\App\Http\Controllers\PlanillaCalidadController::class,'imprimir'])->name('calidad.documentos.imprimir');
+ Route::get('/calidad/planillas/{revision}/imagenes/{indice}',[\App\Http\Controllers\PlanillaCalidadController::class,'imagen'])->name('calidad.documentos.imagen');
+ Route::get('/unidades/{unidad}/calidad/imprimir',[\App\Http\Controllers\PlanillaCalidadController::class,'registro'])->name('calidad.documentos.registro');
+ Route::post('/unidades/{unidad}/calidad/revision',[\App\Http\Controllers\PlanillaCalidadController::class,'adoptar'])->name('calidad.documentos.adoptar');
+ Route::get('/unidades/{unidad}/calidad/historial/{historial}/evidencia/{lado}',[\App\Http\Controllers\UnidadControlCalidadController::class,'evidenciaHistorica'])->name('calidad.evidencia.historial');
+ Route::get('/unidades/{unidad}/calidad/evidencia/{controlUnidad}',[\App\Http\Controllers\UnidadControlCalidadController::class,'evidencia'])->name('calidad.evidencia');
+});
+
+Route::middleware('auth')->post('/calidad/familias/{familia}/editar-item/{control}',[\App\Http\Controllers\PlanillaCalidadController::class,'editarItem'])->name('calidad.documentos.editarItem');
+
+Route::middleware('auth')->group(function(){
+ Route::get('/calidad/secciones',[\App\Http\Controllers\ConfiguracionCalidadController::class,'secciones'])->name('calidad.secciones');
+ Route::post('/calidad/familias/{familia}/secciones',[\App\Http\Controllers\ConfiguracionCalidadController::class,'seccionGuardar'])->name('calidad.secciones.guardar');
+ Route::get('/calidad/familias/{familia}/puntos/nuevo',[\App\Http\Controllers\ConfiguracionCalidadController::class,'edit'])->name('calidad.configuracion.nuevo');
+ Route::post('/calidad/familias/{familia}/puntos',[\App\Http\Controllers\ConfiguracionCalidadController::class,'guardar'])->name('calidad.configuracion.crear');
+ Route::get('/calidad/familias/{familia}/puntos/{indice}/editar',[\App\Http\Controllers\ConfiguracionCalidadController::class,'edit'])->name('calidad.configuracion.editar');
+ Route::post('/calidad/familias/{familia}/puntos/{indice}',[\App\Http\Controllers\ConfiguracionCalidadController::class,'guardar'])->name('calidad.configuracion.guardar');
+});

@@ -11,7 +11,7 @@
                 </p>
             </div>
 
-            <a href="{{ route('calidad.familias.controles.create', $familia) }}" class="btn btn-primary">
+            <a href="{{ \Illuminate\Support\Facades\DB::table('calidad_documentos')->where('familia_id',$familia->id)->exists() ? route('calidad.documentos.index',$familia) : route('calidad.familias.controles.create', $familia) }}" class="btn btn-primary">
                 Nuevo control
             </a>
         </div>
@@ -22,6 +22,7 @@
             </div>
         @endif
 
+        <div class="card card-body mb-3"><h2 class="h5">Planilla documental de la familia</h2><p>Administrá código, revisiones, imágenes e impresión. Los cambios se preparan en borrador.</p><a href="{{ route('calidad.documentos.index',$familia) }}" class="btn btn-outline-primary">Planilla y revisiones</a></div>
         <div class="card shadow-sm">
             <div class="card-header">
                 <h2 class="h5 mb-0">Controles asignados</h2>
@@ -130,12 +131,11 @@
                                     </td>
 
                                     <td>
-                                        <a href="{{ route('calidad.familias.controles.edit', [$familia, $item]) }}"
-                                            class="btn btn-sm btn-warning">
-                                            Editar
-                                        </a>
+                                        @if (\Illuminate\Support\Facades\DB::table('calidad_documentos')->where('familia_id',$familia->id)->exists())
+<form method="POST" action="{{ route('calidad.documentos.editarItem',[$familia,$item->control_calidad_id]) }}">@csrf<button class="btn btn-sm btn-warning">Editar</button></form>
+@else<a href="{{ route('calidad.familias.controles.edit',[$familia,$item]) }}" class="btn btn-sm btn-warning">Editar</a>@endif
 
-                                        <form method="POST" class="d-inline"
+                                        @if (!\Illuminate\Support\Facades\DB::table('calidad_documentos')->where('familia_id',$familia->id)->exists())<form method="POST" class="d-inline"
                                             action="{{ route('calidad.familias.controles.destroy', [$familia, $item]) }}">
                                             @csrf
                                             @method('DELETE')
@@ -144,7 +144,7 @@
                                                 onclick="return confirm('¿Quitar este control?')">
                                                 Quitar
                                             </button>
-                                        </form>
+                                        </form>@endif
                                     </td>
                                 </tr>
                                 @empty

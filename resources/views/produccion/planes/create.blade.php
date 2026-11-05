@@ -112,6 +112,7 @@
                                 </div>
 
                                 <div class="col-md-3">
+                                    <label class="form-label">Chasis inicial (opcional)</label><input class="form-control mb-2 chasis-inicial" name="chasis_inicial[]" inputmode="numeric" pattern="[0-9]{1,12}" value="{{ old('chasis_inicial.'.$indice) }}" placeholder="Ej.: 20499"><div class="small text-primary rango-chasis mb-2" aria-live="polite"></div>
                                     <label class="form-label">Observación</label>
 
                                     <input
@@ -177,6 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
         fila.querySelector('.producto-resumen').textContent = 'Seleccioná un producto';
         fila.querySelector('.error-producto').textContent = '';
         fila.querySelector('input[name="cantidad[]"]').value = 1;
+        fila.querySelector('.chasis-inicial').value = '';fila.querySelector('.rango-chasis').textContent = '';
         fila.querySelector('input[name="observaciones[]"]').value = '';
     }
     function buscar(fila) {
@@ -189,6 +191,9 @@ document.addEventListener('DOMContentLoaded', function () {
         container.appendChild(fila);
         buscar(fila);
     });
+    function mostrarRango(fila){const inicio=fila.querySelector('.chasis-inicial').value;const n=Number(fila.querySelector('input[name="cantidad[]"]').value);fila.querySelector('.rango-chasis').textContent=inicio && Number.isInteger(n) && n>0 ? `${n} unidades: chasis ${inicio} a ${String(Number(inicio)+n-1).padStart(inicio.length,'0')}. Se generarán al guardar el plan.` : '';}
+    container.addEventListener('input',e=>{const fila=e.target.closest('.producto-row');if(fila)mostrarRango(fila);});
+    container.querySelectorAll('.producto-row').forEach(mostrarRango);
     container.addEventListener('click', evento => {
         const boton = evento.target.closest('button');
         if (!boton) return;

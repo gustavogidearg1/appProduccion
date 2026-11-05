@@ -63,10 +63,11 @@
 
     <a href="{{ route('calidad.index') }}"
    class="nav-link text-white rounded
-   {{ request()->routeIs('calidad.*') ? 'bg-warning text-dark' : '' }}">
+   {{ (request()->routeIs('calidad.*') && !request()->routeIs('calidad.secciones*')) ? 'bg-warning text-dark' : '' }}">
         <i class="bi bi-check2-square me-2"></i>
         Controles de calidad
     </a>
+    <a href="{{ route('calidad.secciones') }}" class="nav-link text-white rounded {{ request()->routeIs('calidad.secciones*') ? 'bg-warning text-dark' : '' }}"><i class="bi bi-list-ol me-2"></i>Secciones por familia</a>
 </nav>
 
 

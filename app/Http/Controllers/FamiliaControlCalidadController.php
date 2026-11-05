@@ -25,36 +25,18 @@ class FamiliaControlCalidadController extends Controller
 
     public function index(Familia $familia)
     {
-        $controlesFamilia = FamiliaControlCalidad::with([
-            'control',
-            'etapa',
-        ])
-            ->where('familia_id', $familia->id)
-            ->orderBy('orden')
-            ->get();
-
-        return view(
-            'calidad.familias.controles.index',
-            compact('familia', 'controlesFamilia')
-        );
+        return app(ConfiguracionCalidadController::class)->controles(request(),$familia);
     }
 
     public function create(Familia $familia)
     {
-        $etapas = EtapaProduccion::query()
-            ->where('alcance', 'unidad')
-            ->where('activo', true)
-            ->orderBy('orden')
-            ->get();
-
-        return view(
-            'calidad.familias.controles.create',
-            compact('familia', 'etapas')
-        );
+        return redirect()->route('calidad.configuracion.nuevo',$familia);
     }
 
     public function store(Request $request, Familia $familia)
     {
+        abort_if(DB::table('calidad_documentos')->where('familia_id',$familia->id)->exists(),422,'Esta familia usa planillas con revisión. Editá el borrador desde Planilla y revisiones.');
+
         $datos = $request->validate([
             'nombre' => [
                 'required',
@@ -179,6 +161,8 @@ class FamiliaControlCalidadController extends Controller
     Familia $familia,
     FamiliaControlCalidad $familiaControl
 ) {
+        abort_if(DB::table('calidad_documentos')->where('familia_id',$familia->id)->exists(),422,'Esta familia usa planillas con revisión. Editá el borrador desde Planilla y revisiones.');
+
     abort_unless(
         $familiaControl->familia_id === $familia->id,
         404
@@ -282,6 +266,8 @@ class FamiliaControlCalidadController extends Controller
         Familia $familia,
         FamiliaControlCalidad $familiaControl
     ) {
+        abort_if(DB::table('calidad_documentos')->where('familia_id',$familia->id)->exists(),422,'Esta familia usa planillas con revisión. Editá el borrador desde Planilla y revisiones.');
+
         abort_unless(
             $familiaControl->familia_id === $familia->id,
             404

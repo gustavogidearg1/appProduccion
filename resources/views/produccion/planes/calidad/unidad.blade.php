@@ -1,149 +1,32 @@
 @extends('layouts.app')
-
 @section('content')
-    <div class="container-fluid py-4">
-
-        <div class="d-flex justify-content-between align-items-start mb-4">
-            <div>
-                <h1 class="mb-1">Control de calidad</h1>
-
-                <p class="text-muted mb-0">
-                    Plan #{{ $plan->numero }}
-                    -
-                    Unidad {{ $unidad->numero_unidad }}
-                    -
-                    {{ $planProducto->producto?->nombre }}
-                </p>
-            </div>
-
-            <a href="{{ route('planes.productos.unidades', [$plan, $planProducto]) }}" class="btn btn-outline-secondary">
-                Volver a unidades
-            </a>
-        </div>
-
-        @if (session('success'))
-            <div class="alert alert-success">
-                {{ session('success') }}
-            </div>
-        @endif
-
-        @if ($controles->isEmpty())
-            <div class="alert alert-info">
-                Este producto no tiene controles de calidad configurados.
-            </div>
-        @else
-            <form method="POST" enctype="multipart/form-data"
-                action="{{ route('planes.productos.unidades.calidad.update', [$plan, $planProducto, $unidad]) }}">
-                @csrf
-                @method('PUT')
-
-                <div class="card shadow-sm">
-                    <div class="card-header">
-                        <h2 class="h4 mb-0">Controles de la unidad</h2>
-                    </div>
-
-                    <div class="card-body">
-                        @foreach ($controles as $controlUnidad)
-                            @php
-                                $control = $controlUnidad->control;
-                                $controlId = $controlUnidad->id;
-                            @endphp
-
-                            <div class="border rounded p-3 mb-3">
-                                <div class="row g-3">
-
-                                    <div class="col-md-5">
-                                        <label class="form-label fw-semibold">
-                                            {{ $control?->nombre ?? 'Control' }}
-
-                                            @if ($control?->obligatorio)
-                                                <span class="text-danger">*</span>
-                                            @endif
-                                        </label>
-
-                                        @if ($control?->descripcion)
-                                            <div class="small text-muted">
-                                                {{ $control->descripcion }}
-                                            </div>
-                                        @endif
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <label class="form-label">Resultado</label>
-
-                                        <select name="controles[{{ $controlId }}][resultado]" class="form-select">
-                                            @foreach ([
-            'pendiente' => 'Pendiente',
-            'aprobado' => 'Aprobado',
-            'observado' => 'Observado',
-            'no_aplica' => 'No aplica',
-        ] as $valor => $texto)
-                                                <option value="{{ $valor }}" @selected(old("controles.$controlId.resultado", $controlUnidad->resultado) === $valor)>
-                                                    {{ $texto }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <label class="form-label">
-                                            Valor o detalle
-                                        </label>
-
-                                        <input type="text" name="controles[{{ $controlId }}][valor]"
-                                            class="form-control"
-                                            value="{{ old("controles.$controlId.valor", $controlUnidad->valor) }}"
-                                            placeholder="Ejemplo: OK, 11112, texto...">
-                                    </div>
-
-                                    <div class="col-12">
-                                        <label class="form-label">
-                                            Observaciones
-                                        </label>
-
-                                        <textarea name="controles[{{ $controlId }}][observaciones]" class="form-control" rows="2">{{ old("controles.$controlId.observaciones", $controlUnidad->observaciones) }}</textarea>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label class="form-label">
-                                            Evidencia fotográfica
-                                        </label>
-
-                                        <input type="file" name="controles[{{ $controlId }}][evidencia]"
-                                            class="form-control" accept=".jpg,.jpeg,.png,.webp">
-
-                                        <div class="form-text">
-                                            Opcional. JPG, PNG o WEBP. Máximo 5 MB.
-                                        </div>
-
-                                        @if ($controlUnidad->evidencia_path)
-                                            <div class="mt-2">
-                                                <a href="{{ asset('storage/' . $controlUnidad->evidencia_path) }}"
-                                                    target="_blank" class="btn btn-sm btn-outline-primary">
-                                                    Ver evidencia actual
-                                                </a>
-                                            </div>
-                                        @endif
-                                    </div>
-
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-
-                    <div class="card-footer d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            Guardar control de calidad
-                        </button>
-
-                        <a href="{{ route('planes.productos.unidades', [$plan, $planProducto]) }}"
-                            class="btn btn-outline-secondary">
-                            Cancelar
-                        </a>
-                    </div>
-                </div>
-            </form>
-        @endif
-
-    </div>
-@endsection
+<div class="container-fluid py-4"><h1>Autocontrol · Chasis {{ $unidad->chasis ?: 'Sin cargar' }}</h1><p>Plan / OIF #{{ $plan->numero }} · {{ $planProducto->producto?->nombre }}</p>
+@include('planificacion.mensajes')
+<a class="btn btn-outline-secondary mb-3" href="{{ route('planes.productos.unidades',[$plan,$planProducto]) }}">Volver a unidades</a> <a class="btn btn-outline-primary mb-3" target="_blank" href="{{ route('calidad.documentos.registro',$unidad) }}">Imprimir controles del chasis</a>
+<div class="card card-body mb-3">@if ($revision)<strong>{{ $revision->codigo }} · {{ $revision->nombre }} · Revisión {{ $revision->revision }}</strong><span>Aprobó {{ $revision->aprobado_por }} · Vigencia {{ $revision->vigente_desde }}</span>@else<strong>Configuración anterior · sin revisión documentada</strong><span>Se conserva la definición disponible al incorporar el historial documental.</span>@endif</div>
+@if ($vigente && $unidad->calidad_revision_id!=$vigente->id)<div class="alert alert-info">Existe una revisión vigente: {{ $vigente->codigo }} / {{ $vigente->revision }}. Este chasis conserva su configuración anterior.
+<form method="POST" action="{{ route('calidad.documentos.adoptar',$unidad) }}" class="mt-2">@csrf<label><input type="checkbox" name="confirmar" value="1" required> Aplicar a este chasis solo si todavía no tiene controles realizados.</label><button class="btn btn-sm btn-outline-primary">Aplicar revisión vigente</button></form></div>@endif
+@if ($controles->isEmpty())<p>Sin controles asignados. Prepará y aprobá la planilla de la familia.</p>@else
+<form method="POST" enctype="multipart/form-data" action="{{ route('planes.productos.unidades.calidad.update',[$plan,$planProducto,$unidad]) }}">@csrf @method('PUT')<input type="hidden" name="version" value="{{ $version }}">
+@foreach ($controles->groupBy(fn($r)=>\App\Services\CalidadDocumental::definicion($r)['seccion'] ?: ($r->etapa?->nombre ?? 'Controles')) as $seccion=>$filas)
+<h2 class="h4 mt-4">{{ $seccion }}</h2>
+@if ($revision)@foreach (json_decode($revision->contenido,true)['imagenes'] as $i=>$img)@if ($img['seccion']===$seccion)<a target="_blank" href="{{ route('calidad.documentos.imagen',[$revision->id,$i]) }}"><img alt="{{ $img['pie'] }}" src="{{ route('calidad.documentos.imagen',[$revision->id,$i]) }}" style="max-width:260px;max-height:200px;object-fit:contain"></a>@endif @endforeach @endif
+@foreach ($filas as $row)@php $def=\App\Services\CalidadDocumental::definicion($row);$id=$row->id; @endphp
+<div class="card card-body mb-2"><strong>{{ $def['nombre'] }} @if ($def['obligatorio'] ?? false)*@endif</strong><p class="small mb-1">{{ $def['descripcion'] ?? '' }}</p>
+@if (!empty($def['condicion']))<p class="small text-primary">{{ $def['condicion'] }} · Si no corresponde, elegí No aplica y explicá el motivo.</p>@endif
+@if (($def['min']??null)!==null || ($def['max']??null)!==null)<p class="small">Rango: {{ $def['min']??'-' }} a {{ $def['max']??'-' }} {{ $def['unidad_medida']??'' }}</p>@endif
+<div class="row g-2"><div class="col-md-3"><label>Resultado<select class="form-select" name="controles[{{ $id }}][resultado]">@foreach (['pendiente'=>'Pendiente','aprobado'=>'Aprobado','observado'=>'Observado / requiere corrección','no_aplica'=>'No aplica'] as $v=>$n)<option value="{{ $v }}" @selected(old("controles.$id.resultado",$row->resultado)===$v)>{{ $n }}</option>@endforeach</select></label></div>
+<div class="col-md-3"><label>Valor / detalle {{ $def['unidad_medida']??'' }}<input class="form-control" name="controles[{{ $id }}][valor]" value="{{ old("controles.$id.valor",$row->valor) }}"></label></div>
+<div class="col-md-3"><label>Fecha del control<input class="form-control" type="date" name="controles[{{ $id }}][fecha_control]" value="{{ old("controles.$id.fecha_control",$row->fecha_control?->format('Y-m-d')) }}"></label></div>
+<div class="col-md-3"><label>Operario / legajo<input class="form-control" name="controles[{{ $id }}][operario]" value="{{ old("controles.$id.operario",$row->operario) }}"></label></div>
+@if (($def['tipo_respuesta']??'')==='valor')<div class="col-md-4"><label>Instrumento utilizado<input class="form-control" name="controles[{{ $id }}][instrumento]" value="{{ old("controles.$id.instrumento",$row->instrumento) }}"></label></div>@endif
+@if (!empty($def['espesor']))<div class="col-md-4"><label>Criterio de espesor<select class="form-select" name="controles[{{ $id }}][criterio_medicion]"><option value="">Seleccionar</option><option value="color" @selected($row->criterio_medicion==='color')>Fondo + color: 50 a 90 µm</option><option value="gris" @selected($row->criterio_medicion==='gris')>Fondo + gris: 35 a 65 µm</option></select></label></div>@endif
+<div class="col-12"><label class="d-block">Observaciones / motivo de No aplica<textarea class="form-control" name="controles[{{ $id }}][observaciones]" rows="1">{{ old("controles.$id.observaciones",$row->observaciones) }}</textarea></label></div>
+<div class="col-md-6"><label>Evidencia opcional (JPG, PNG o WEBP, 5 MB)<input class="form-control" type="file" accept="image/jpeg,image/png,image/webp" name="controles[{{ $id }}][evidencia]"></label>@if ($row->evidencia_path)<a target="_blank" href="{{ route('calidad.evidencia',[$unidad,$row]) }}">Ver evidencia actual</a>@endif</div>
+</div></div>@endforeach @endforeach
+<label class="d-block mt-3">Motivo de corrección (necesario si cambiás un control ya registrado)<textarea class="form-control" name="motivo_correccion">{{ old('motivo_correccion') }}</textarea></label>
+<p class="small text-muted mt-2">Guardar conserva el historial. Una observación mantiene pendiente la conformidad; No aplica requiere justificación. La siguiente etapa se inicia desde Avances.</p>
+<button class="btn btn-primary mb-4 mt-2">Guardar autocontrol</button></form>@endif
+<details class="border rounded p-3"><summary>Historial de registros y correcciones</summary>@forelse ($historial as $h)<details class="mt-2"><summary>{{ $h->created_at }} · {{ $h->responsable }} · {{ $h->motivo }}</summary><pre style="white-space:pre-wrap">Antes: {{ json_encode(json_decode($h->anterior),JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}
+Después: {{ json_encode(json_decode($h->nuevo),JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre>@foreach (['anterior'=>'Evidencia anterior','nuevo'=>'Evidencia nueva'] as $lado=>$titulo)@if (!empty(json_decode($h->$lado,true)['evidencia_path']))<a class="btn btn-sm btn-outline-secondary me-2" target="_blank" href="{{ route('calidad.evidencia.historial',[$unidad,$h->id,$lado]) }}">{{ $titulo }}</a>@endif @endforeach</details>@empty<p class="mt-2">Sin registros nuevos.</p>@endforelse{{ $historial->links('pagination::bootstrap-5') }}</details>
+</div>@endsection

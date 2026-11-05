@@ -11,6 +11,7 @@
         </p>
     </div>
 
+    <a class="btn btn-outline-primary mb-3" href="{{ route('calidad.secciones') }}">Administrar secciones por familia</a>
     <div class="row g-4">
         @forelse ($familias as $familia)
             <div class="col-md-6 col-lg-4">

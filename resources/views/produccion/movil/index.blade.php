@@ -118,7 +118,8 @@
                                 </div>
                             @endif
 
-                            @if ($etapaActual && $etapaActual->estado !== 'completada')
+                            @if ($etapaActual?->heredado_plan)<div class="alert alert-info">Armado se registra desde Línea de montaje del plan. Al completarla se habilita Escoriado.</div>@endif
+                            @if ($etapaActual && !$etapaActual->heredado_plan && $etapaActual->estado !== 'completada')
                                 <div class="card border-primary mb-4">
                                     <div class="card-body">
 

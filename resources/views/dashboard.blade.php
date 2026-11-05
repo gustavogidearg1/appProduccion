@@ -13,13 +13,6 @@
 <div class="col-md-3 d-flex gap-2"><button class="btn btn-primary">Aplicar</button><a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">Limpiar</a></div>
 <p class="small text-muted mb-0">El estado filtra todo el tablero. Las fechas cambian solo la ventana del Gantt; no ocultan planes ni modifican su planificación.</p>
 </div></form>
-<div class="row g-3 mb-3">
-@foreach (['planes'=>'Planes','unidades'=>'Unidades generadas','con_venta'=>'Unidades con venta','demoras'=>'Unidades con demora activa'] as $clave=>$nombre)
-<div class="col-6 col-xl-3"><div class="card border-0 shadow-sm h-100"><div class="card-body"><div class="text-muted">{{ $nombre }}</div><div class="h2 fw-bold mb-0">{{ $totales[$clave] }}</div>
-@if ($clave==='con_venta')<div class="small text-muted">Reservadas: {{ $totales['reservadas'] }} · Asignadas: {{ $totales['asignadas'] }}</div>@endif
-@if ($clave==='planes' && $totales['sin_unidades'])<div class="small text-muted">Sin unidades: {{ $totales['sin_unidades'] }}</div>@endif
-</div></div></div>@endforeach
-</div>
 <p class="small text-muted">Cada chasis se cuenta una sola vez en su etapa actual. Hasta iniciar un avance individual, se usa la etapa general del plan. Las ventas anuladas y las asignaciones liberadas no cuentan como compromiso comercial.</p>
 <div class="row g-3 mb-4">
 @forelse ($tarjetas as $tarjeta)
