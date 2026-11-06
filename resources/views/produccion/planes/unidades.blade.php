@@ -153,7 +153,9 @@
                                     </td>
 
                                     <td>
-                                        @if ($avanceActual?->etapa)
+                                        @if (!$unidad->estimacion_entrega['excluida'] && $unidad->avances->contains(fn ($avance) => $avance->estado === 'completada' && $avance->etapa?->codigo === 'OK_CALIDAD'))
+                                            <span class="badge bg-success">OK Calidad</span>
+                                        @elseif ($avanceActual?->etapa)
                                             <span class="badge bg-warning text-dark">
                                                 {{ $nombreEstado }}
                                             </span>

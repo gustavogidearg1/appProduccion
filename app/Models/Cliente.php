@@ -12,6 +12,7 @@ class Cliente extends Model
     protected $table = 'clientes';
 
     protected $fillable = [
+        'CodSistema',
         'nombre',
         'cuit',
         'email',

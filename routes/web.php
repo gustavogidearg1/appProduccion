@@ -26,6 +26,9 @@ Route::get('/', function () {
 Route::get('/dashboard', [\App\Http\Controllers\TableroProduccionController::class, 'index'])
     ->middleware(['auth', 'verified'])->name('dashboard');
 
+Route::get('/planificacion/gantt', [\App\Http\Controllers\TableroProduccionController::class, 'index'])
+    ->middleware(['auth', 'verified'])->name('gantt.sectores');
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

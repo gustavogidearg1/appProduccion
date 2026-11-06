@@ -32,7 +32,7 @@
                         type="text"
                         name="search"
                         class="form-control"
-                        placeholder="Buscar por nombre, CUIT o email..."
+                        placeholder="Buscar por código, nombre, CUIT o email..."
                         value="{{ $search }}"
                     >
 
@@ -53,6 +53,7 @@
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
+                            <th>Código del sistema</th>
                             <th>Nombre</th>
                             <th>CUIT</th>
                             <th>Email</th>
@@ -65,6 +66,7 @@
                     <tbody>
                         @forelse($clientes as $cliente)
                             <tr>
+                                <td>{{ $cliente->CodSistema ?? '-' }}</td>
                                 <td class="fw-semibold">
                                     {{ $cliente->nombre }}
                                 </td>
@@ -103,7 +105,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6"
+                                <td colspan="7"
                                     class="text-center text-muted py-4">
                                     No hay clientes registrados.
                                 </td>

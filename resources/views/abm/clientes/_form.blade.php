@@ -10,7 +10,13 @@
 
 <div class="row g-3">
 
-    <div class="col-md-8">
+    <div class="col-md-3">
+        <label for="CodSistema" class="form-label">Código del sistema</label>
+        <input type="text" class="form-control" id="CodSistema" name="CodSistema"
+               maxlength="64" value="{{ old('CodSistema', $cliente->CodSistema ?? '') }}">
+    </div>
+
+    <div class="col-md-6">
         <label for="nombre" class="form-label">Nombre o razón social</label>
         <input
             type="text"
@@ -22,7 +28,7 @@
         >
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label for="cuit" class="form-label">CUIT</label>
         <input
             type="text"

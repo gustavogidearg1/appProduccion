@@ -15,6 +15,7 @@ class ClienteController extends Controller
         $clientes = Cliente::query()
             ->when($search, function ($query, $search) {
                 $query->where('nombre', 'like', "%{$search}%")
+                    ->orWhere('CodSistema', 'like', "%{$search}%")
                     ->orWhere('cuit', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             })
@@ -34,6 +35,7 @@ class ClienteController extends Controller
     {
         $datos = $request->validate([
             'nombre' => 'required|string|max:255',
+            'CodSistema' => 'nullable|string|max:64|unique:clientes,CodSistema',
             'cuit' => 'nullable|string|max:13|unique:clientes,cuit',
             'email' => 'nullable|email|max:255',
             'telefono' => 'nullable|string|max:50',
@@ -60,6 +62,7 @@ class ClienteController extends Controller
     {
         $datos = $request->validate([
             'nombre' => 'required|string|max:255',
+            'CodSistema' => ['nullable', 'string', 'max:64', Rule::unique('clientes', 'CodSistema')->ignore($cliente->id)],
             'cuit' => [
                 'nullable',
                 'string',
