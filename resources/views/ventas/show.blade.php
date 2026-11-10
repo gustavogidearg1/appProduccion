@@ -1,6 +1,17 @@
 @extends('layouts.app')
 
 @section('content')
+    <style>
+        @media print {
+            @page { margin: 12mm; }
+            .navbar, .menu-lateral, .offcanvas { display: none !important; }
+            main.contenido-principal { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
+            .table-responsive { overflow: visible !important; }
+            .card { box-shadow: none !important; }
+            tr { break-inside: avoid; }
+            .badge { color: #000 !important; background: transparent !important; padding-left: 0; }
+        }
+    </style>
     <div class="container-fluid py-4">
 
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -11,7 +22,10 @@
                 </p>
             </div>
 
-            <div class="d-flex gap-2">
+            <div class="d-flex flex-wrap gap-2 d-print-none">
+                <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+                    <i class="bi bi-printer"></i> Imprimir venta
+                </button>
                 @if ($venta->estado !== 'anulada')
                     <a
                         href="{{ route('ventas.edit', $venta) }}"
@@ -48,7 +62,7 @@
         </div>
 
         @if (session('success'))
-            <div class="alert alert-success">
+            <div class="alert alert-success d-print-none">
                 {{ session('success') }}
             </div>
         @endif
@@ -61,17 +75,19 @@
             <div class="card-body">
                 <div class="row g-4">
 
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <strong>Cliente</strong><br>
                         {{ $venta->cliente?->nombre ?? '-' }}
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <strong>Fecha</strong><br>
                         {{ $venta->fecha?->format('d/m/Y') ?? '-' }}
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-3"><strong>Entrega pactada / solicitada</strong><br>{{ $venta->fecha_entrega_pactada?->format('d/m/Y') ?? 'Sin definir' }}</div>
+
+                    <div class="col-md-3">
                         <strong>Estado</strong><br>
 
                         <span class="badge bg-primary">
@@ -79,7 +95,6 @@
                         </span>
                     </div>
 
-                    <div class="col-md-4"><strong>Entrega pactada / solicitada</strong><br>{{ $venta->fecha_entrega_pactada?->format('d/m/Y') ?? 'Sin definir' }}</div>
                     <div class="col-12">
                         <strong>Observaciones</strong><br>
                         {{ $venta->observaciones ?: '-' }}
@@ -96,7 +111,7 @@
                 @if ($venta->estado !== 'anulada')
                     <a
                         href="{{ route('ventas.edit', $venta) }}"
-                        class="btn btn-primary btn-sm"
+                        class="btn btn-primary btn-sm d-print-none"
                     >
                         <i class="bi bi-plus-circle"></i>
                         Agregar o editar productos
@@ -112,10 +127,10 @@
                             <tr>
                                 <th>Producto</th>
                                 <th>Cantidad</th>
-                                <th>Precio unitario</th>
+                                <th class="d-print-none">Precio unitario</th>
                                 <th>Subtotal</th>
                                 <th>Unidades asignadas</th>
-                                <th>Acciones</th>
+                                <th class="d-print-none">Acciones</th>
                             </tr>
                         </thead>
 
@@ -151,7 +166,7 @@
                                         ) }}
                                     </td>
 
-                                    <td>
+                                    <td class="d-print-none">
                                         $
                                         {{ number_format(
                                             (float) $detalle->precio_unitario,
@@ -180,11 +195,16 @@
                                                         {{ $asignacion->unidad?->chasis ?? '-' }}
                                                     </span>
 
-                                                    <span class="badge bg-success">
+                                                    <span class="badge bg-success d-print-none">
                                                         {{ ucfirst($asignacion->estado) }}
                                                     </span>
                                                     @if ($asignacion->unidad)
-                                                        <div class="small mt-2">
+                                                        @php($estimacion = $asignacion->unidad->estimacion_entrega)
+                                                        <div class="small">Etapa: {{ $estimacion['excluida'] ? $estimacion['texto'] : $estimacion['etapa'] }}</div>
+                                                        <div class="small d-none d-print-block">
+                                                            Entrega estimada: {{ $estimacion['fecha'] ? \Carbon\Carbon::parse($estimacion['fecha'])->format('d/m/Y') : '—' }}
+                                                        </div>
+                                                        <div class="small mt-2 d-print-none">
                                                             <strong>Entrega estimada actual</strong>
                                                             @include('planificacion.estimacion', ['estimacion'=>$asignacion->unidad->estimacion_entrega])
                                                         </div>
@@ -198,8 +218,10 @@
                                         @endif
                                     </td>
 
-                                    <td>
-                                        @if (
+                                    <td class="d-print-none">
+                                        @if (!$detalle->producto?->esImplemento())
+                                            <span class="text-muted">—</span>
+                                        @elseif (
                                             $venta->estado !== 'anulada' &&
                                             $cantidadAsignada < $cantidadVendida
                                         )
@@ -239,11 +261,12 @@
 
                         <tfoot>
                             <tr>
-                                <th colspan="4" class="text-end">
+                                <th colspan="4" class="text-end d-print-none">
                                     Total
                                 </th>
 
-                                <th colspan="2">
+                                <th colspan="3" class="text-end d-none d-print-table-cell">Total</th>
+                                <th>
                                     $
                                     {{ number_format(
                                         (float) $venta->total,
@@ -252,6 +275,7 @@
                                         '.'
                                     ) }}
                                 </th>
+                                <td class="d-print-none"></td>
                             </tr>
                         </tfoot>
                     </table>

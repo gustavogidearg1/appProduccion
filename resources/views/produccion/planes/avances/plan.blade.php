@@ -129,7 +129,7 @@
                                     <input
                                         form="{{ $formPlanificacion }}"
                                         type="date"
-                                        name="fecha_inicio_planificada"
+                                        name="fecha_inicio_planificada" @readonly(!auth()->user()->administraAvancesGlobales())
                                         class="form-control form-control-sm"
                                         value="{{ $avance?->fecha_inicio_planificada?->format('Y-m-d') }}"
                                     >
@@ -139,21 +139,22 @@
                                     <input
                                         form="{{ $formPlanificacion }}"
                                         type="date"
-                                        name="fecha_fin_planificada"
+                                        name="fecha_fin_planificada" @readonly(!auth()->user()->administraAvancesGlobales())
                                         class="form-control form-control-sm"
                                         value="{{ $avance?->fecha_fin_planificada?->format('Y-m-d') }}"
                                     >
                                 </td>
 
                                 <td>
-                                    <input type="date" form="{{ $formReales }}" name="fecha_inicio" aria-label="Inicio real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ (string) old('etapa_real') === (string) $etapa->id ? old('fecha_inicio') : $avance?->fecha_inicio?->format('Y-m-d') }}">
+                                    <input type="date" form="{{ $formReales }}" name="fecha_inicio" @readonly(!auth()->user()->administraAvancesGlobales()) aria-label="Inicio real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ (string) old('etapa_real') === (string) $etapa->id ? old('fecha_inicio') : $avance?->fecha_inicio?->format('Y-m-d') }}">
                                 </td>
 
                                 <td>
-                                    <input type="date" form="{{ $formReales }}" name="fecha_fin" aria-label="Fin real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ (string) old('etapa_real') === (string) $etapa->id ? old('fecha_fin') : $avance?->fecha_fin?->format('Y-m-d') }}">
+                                    <input type="date" form="{{ $formReales }}" name="fecha_fin" @readonly(!auth()->user()->administraAvancesGlobales()) aria-label="Fin real de {{ $etapa->nombre }}" class="form-control form-control-sm" value="{{ (string) old('etapa_real') === (string) $etapa->id ? old('fecha_fin') : $avance?->fecha_fin?->format('Y-m-d') }}">
                                 </td>
 
                                 <td>
+                                    @if (auth()->user()->administraAvancesGlobales())
                                     <form
                                         id="{{ $formPlanificacion }}"
                                         method="POST"
@@ -186,7 +187,10 @@
                                         @endif
                                         <button class="btn btn-sm btn-outline-success">Guardar fechas reales</button>
                                     </form>
-                                    @if(!$avance || $avance->estado === 'pendiente')
+                                    @endif
+                                    @if (!auth()->user()->puedeOperarEtapaGlobal($etapa))
+                                        <span class="text-muted">Solo consulta</span>
+                                    @elseif(!$avance || $avance->estado === 'pendiente')
 
                                         @if($puedeIniciar)
                                             <form

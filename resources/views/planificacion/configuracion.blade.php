@@ -5,23 +5,42 @@
 <p class="text-muted">Días hábiles restantes para entregar desde cada etapa. No son duraciones para sumar entre sí. Sábados y domingos no se cuentan.</p>
 @include('planificacion.mensajes')
 <div class="card mb-4"><div class="card-header">Plazos por producto</div><div class="card-body">
-<form method="GET" action="{{ route('plazos.index') }}" class="d-flex gap-2 mb-3">
-<select name="producto_id" class="form-select" required><option value="">Seleccionar producto</option>
-@foreach ($productos as $producto)<option value="{{ $producto->id }}" @selected($productoId == $producto->id)>{{ $producto->nombre }}</option>@endforeach
-</select><button class="btn btn-primary">Ver plazos</button></form>
+@php
+    $productoElegido = $productos->firstWhere('id', $productoId);
+@endphp
+<form method="GET" action="{{ route('plazos.index') }}" id="producto-plazos" class="d-flex flex-wrap gap-2 mb-3">
+    <input type="hidden" name="producto_id" value="{{ $productoElegido?->id }}">
+    <input class="form-control flex-grow-1 w-auto" type="text" readonly aria-label="Producto seleccionado"
+           placeholder="Seleccionar producto" value="{{ $productoElegido?->nombre }}">
+    <button type="button" class="btn btn-outline-primary" onclick="window.buscadorProductos.abrir(this.form)" aria-haspopup="dialog">
+        <i class="bi bi-search" aria-hidden="true"></i> Buscar producto
+    </button>
+    <button type="submit" class="btn btn-primary" @disabled(!$productoElegido)>Ver plazos</button>
+</form>
+@include('components.buscador-productos', ['productos'=>$productos])
+<script>
+document.getElementById('producto-plazos').addEventListener('producto-seleccionado', ({detail}) => {
+    const formulario = document.getElementById('producto-plazos');
+    formulario.elements.producto_id.value = detail.id;
+    formulario.querySelector('input[readonly]').value = detail.nombre;
+    formulario.querySelector('[type="submit"]').disabled = false;
+});
+</script>
 @if ($productoId)
 <form method="POST" action="{{ route('plazos.guardar') }}">@csrf
 <input type="hidden" name="producto_id" value="{{ $productoId }}">
 <p class="small text-muted">Vacío = plazo sin definir. «Desde hoy» reinicia el plazo cada día. Sin marcar, se conserva la previsión vigente; si venció, se recalcula desde hoy con una alerta. OK Calidad completada ofrece entrega inmediata, salvo demoras activas.</p>
-<div class="table-responsive"><table class="table"><thead><tr><th>Etapa</th><th>Alcance</th><th>Días hábiles restantes</th><th>Calcular siempre desde hoy</th></tr></thead><tbody>
+<p class="small text-muted">La UE es opcional y se puede guardar aunque el plazo esté sin definir.</p>
+<div class="table-responsive"><table class="table"><thead><tr><th>Etapa</th><th>Alcance</th><th>Días hábiles restantes</th><th>Calcular siempre desde hoy</th><th>UE por etapa</th></tr></thead><tbody>
 @foreach ($etapas as $etapa)
 @php
     $regla = $reglas->get($etapa->id);
 @endphp
-<tr><td>{{ $etapa->nombre }}</td><td>{{ ucfirst($etapa->alcance) }}</td><td><input aria-label="Días para {{ $etapa->nombre }}" type="number" class="form-control" name="plazos[{{ $etapa->id }}][dias]" min="0" max="3650" value="{{ old('plazos.'.$etapa->id.'.dias', $regla?->activo ? $regla->dias_habiles : '') }}"></td>
-<td><input type="hidden" name="plazos[{{ $etapa->id }}][desde_hoy]" value="0"><input aria-label="Desde hoy en {{ $etapa->nombre }}" type="checkbox" name="plazos[{{ $etapa->id }}][desde_hoy]" value="1" @checked(old('plazos.'.$etapa->id.'.desde_hoy', $regla?->desde_hoy))></td></tr>
+<tr><td>{{ $etapa->nombre }}</td><td>{{ ucfirst($etapa->alcance) }}</td>@if ($etapa->codigo === 'OK_CALIDAD')<td colspan="2" class="text-muted">Entrega inmediata al completar</td>@else<td><input aria-label="Días para {{ $etapa->nombre }}" type="number" class="form-control" name="plazos[{{ $etapa->id }}][dias]" min="0" max="3650" value="{{ old('plazos.'.$etapa->id.'.dias', $regla?->activo ? $regla->dias_habiles : '') }}"></td>
+<td><input type="hidden" name="plazos[{{ $etapa->id }}][desde_hoy]" value="0"><input aria-label="Desde hoy en {{ $etapa->nombre }}" type="checkbox" name="plazos[{{ $etapa->id }}][desde_hoy]" value="1" @checked(old('plazos.'.$etapa->id.'.desde_hoy', $regla?->desde_hoy))></td>@endif
+<td><input aria-label="UE para {{ $etapa->nombre }}" type="text" inputmode="decimal" class="form-control" name="plazos[{{ $etapa->id }}][ue]" value="{{ old('plazos.'.$etapa->id.'.ue', $regla?->ue) }}" placeholder="Ej. 0,15"></td></tr>
 @endforeach
-</tbody></table></div><button class="btn btn-success">Guardar plazos</button></form>
+</tbody></table></div><button class="btn btn-success">Guardar plazos y UE</button></form>
 @endif
 </div></div>
 <div class="card mb-4"><div class="card-header">Calendario no laboral</div><div class="card-body">

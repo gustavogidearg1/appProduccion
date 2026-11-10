@@ -3,24 +3,41 @@
 <div class="card shadow-sm mb-4" id="gantt-etapas">
 <div class="card-header"><h2 class="h5 mb-0">Gantt por sector · Comparar planes</h2></div>
 <div class="card-body">
+<details class="mb-3">
+    <summary class="fw-semibold mb-2">Filtros del Gantt</summary>
 <form method="GET" action="{{ route($vistaGantt ? 'gantt.sectores' : 'dashboard') }}#gantt-etapas" class="row g-3 align-items-end mb-3">
 @if ($vistaGantt)
 <div class="col-md-4"><label class="form-label" for="estado-gantt">Estado del plan</label><select class="form-select" name="estado" id="estado-gantt"><option value="">Todos</option>@foreach (['abierto'=>'Abierto','cerrado'=>'Cerrado','cancelado'=>'Cancelado'] as $valor=>$nombre)<option value="{{ $valor }}" @selected(($filtros['estado'] ?? '')===$valor)>{{ $nombre }}</option>@endforeach</select></div>
 <div class="col-md-4"><label class="form-label" for="escala-gantt">Escala</label><select class="form-select" name="escala" id="escala-gantt">@foreach (['semana'=>'Semana','mes'=>'Mes','anio'=>'Año'] as $valor=>$nombre)<option value="{{ $valor }}" @selected($escala===$valor)>{{ $nombre }}</option>@endforeach</select></div>
 @else
 <input type="hidden" name="estado" value="{{ $filtros['estado'] ?? '' }}">
+@foreach (['numero_plan','chasis','serie','cliente','cliente_id','buscar_producto','producto_id','comercial','etapa','mostrar_entregadas'] as $clave)
+    @if (filled($filtros[$clave] ?? null))<input type="hidden" name="{{ $clave }}" value="{{ $filtros[$clave] }}">@endif
+@endforeach
 @endif
 <div class="col-md-4"><label class="form-label" for="sector-gantt">Sector</label><select class="form-select" name="sector_gantt" id="sector-gantt"><option value="">Todos los sectores</option>@foreach ($sectoresGantt as $sector)<option value="{{ $sector->codigo }}" @selected(($filtros['sector_gantt'] ?? '')===$sector->codigo)>{{ $sector->nombre }}</option>@endforeach</select></div>
-<div class="col-md-4"><x-buscador-planes id="plan-gantt" name="plan_gantt" :planes="$planesGantt" :seleccion="$filtros['plan_gantt'] ?? null" /></div>
+<div class="col-md-4">
+    <label for="plan-gantt" class="form-label">Número de plan</label>
+    <input type="number" min="1" max="4294967295" id="plan-gantt" name="numero_plan_gantt"
+           class="form-control" placeholder="Ej. 709" value="{{ $filtros['numero_plan_gantt'] ?? '' }}">
+</div>
 <div class="col-md-4"><label class="form-label" for="situacion-gantt">Situación del sector</label><select class="form-select" name="situacion_gantt" id="situacion-gantt"><option value="">Todas</option>@foreach (['pendiente'=>'Pendiente','en_proceso'=>'En proceso','completada'=>'Completada','sin_planificar'=>'Planificación faltante o a revisar','coincidencias'=>'Con coincidencias entre planes'] as $valor=>$nombre)<option value="{{ $valor }}" @selected(($filtros['situacion_gantt'] ?? '')===$valor)>{{ $nombre }}</option>@endforeach</select></div>
 <div class="col-md-4"><label class="form-label" for="desde-sector">Desde</label><input type="date" class="form-control" id="desde-sector" name="desde" value="{{ $filtros['desde'] }}" required></div>
 <div class="col-md-4"><label class="form-label" for="hasta-sector">Hasta</label><input type="date" class="form-control" id="hasta-sector" name="hasta" value="{{ $filtros['hasta'] }}" required></div>
+<div class="col-md-4">
+    <div class="form-check mb-2">
+        <input type="checkbox" class="form-check-input" id="mostrar-fuera-periodo" name="mostrar_fuera_periodo"
+               value="1" @checked(!empty($filtros['mostrar_fuera_periodo']))>
+        <label class="form-check-label" for="mostrar-fuera-periodo">Mostrar etapas sin actividad en el período</label>
+    </div>
+</div>
 <div class="col-md-4 d-flex gap-2"><button class="btn btn-primary">Filtrar Gantt</button><a class="btn btn-outline-secondary" href="{{ $vistaGantt ? route('gantt.sectores') : route('dashboard',array_intersect_key($filtros,array_flip(['estado','desde','hasta']))) }}#gantt-etapas">Limpiar filtros</a></div>
 </form>
+</details>
 @if (!$vistaGantt)
 <p class="small text-muted">Sector, plan y situación filtran solo este Gantt. Las fechas comparten el período elegido arriba. Las coincidencias se comparan con todos los planes del estado seleccionado, incluso al elegir un solo plan.</p>
 
-<p class="small text-muted">Cada sector agrupa todos los planes del estado elegido, aunque estén en otra página. Usa las fechas de «Avances del plan». Azul: planificado; verde: real registrado. Los avances individuales se consultan desde la ficha del chasis.</p>
+<p class="small text-muted">Cada sector puede incluir planes de otras páginas del tablero. Usa las fechas de «Avances del plan». Azul: planificado; verde: real registrado. Los avances individuales se consultan desde la ficha del chasis.</p>
 @else
 <p class="small text-muted">Azul indica lo planificado y verde lo registrado. Las coincidencias se comparan con todos los planes del estado elegido, incluso al filtrar un solo plan.</p>
 @endif
@@ -45,7 +62,7 @@
 @if ($filaEtapa['coincidencias'])<div class="small text-warning-emphasis">Coincide con: {{ collect($filaEtapa['coincidencias'])->map(fn($n)=>'#'.$n)->implode(', ') }}</div>@endif
 </td><td>@include('tablero.barras',['fila'=>$filaEtapa])</td></tr>
 @empty<tr><td class="gantt-label text-muted">Sin planes</td><td></td></tr>@endforelse
-@empty<tr><td colspan="2" class="p-3 text-muted">No hay resultados para los filtros elegidos.</td></tr>@endforelse
+@empty<tr><td colspan="2" class="p-3 text-muted">No hay etapas que coincidan con los filtros y el período. Probá ampliar las fechas o mostrar etapas sin actividad en el período.</td></tr>@endforelse
 </tbody></table></div>
 <p class="small text-muted mt-2 mb-0">Sin fechas: sin planificar. Con una sola fecha: punto, sin duración supuesta. Abrí el número de plan para corregir sus fechas.</p>
 </div></div>

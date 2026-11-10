@@ -29,4 +29,21 @@
 <button class="btn btn-primary mb-4 mt-2">Guardar autocontrol</button></form>@endif
 <details class="border rounded p-3"><summary>Historial de registros y correcciones</summary>@forelse ($historial as $h)<details class="mt-2"><summary>{{ $h->created_at }} · {{ $h->responsable }} · {{ $h->motivo }}</summary><pre style="white-space:pre-wrap">Antes: {{ json_encode(json_decode($h->anterior),JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}
 Después: {{ json_encode(json_decode($h->nuevo),JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre>@foreach (['anterior'=>'Evidencia anterior','nuevo'=>'Evidencia nueva'] as $lado=>$titulo)@if (!empty(json_decode($h->$lado,true)['evidencia_path']))<a class="btn btn-sm btn-outline-secondary me-2" target="_blank" href="{{ route('calidad.evidencia.historial',[$unidad,$h->id,$lado]) }}">{{ $titulo }}</a>@endif @endforeach</details>@empty<p class="mt-2">Sin registros nuevos.</p>@endforelse{{ $historial->links('pagination::bootstrap-5') }}</details>
-</div>@endsection
+</div><script>
+    document.querySelectorAll('select[name^="controles["][name$="[resultado]"]').forEach(resultado => {
+        resultado.addEventListener('change', () => {
+            const nombreFecha = resultado.name.replace(/\[resultado\]$/, '[fecha_control]');
+            const fecha = resultado.form.elements.namedItem(nombreFecha);
+
+            if (resultado.value !== 'pendiente' && fecha && !fecha.value) {
+                fecha.value = new Intl.DateTimeFormat('sv-SE', {
+                    timeZone: 'America/Argentina/Buenos_Aires',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                }).format(new Date());
+            }
+        });
+    });
+</script>
+@endsection

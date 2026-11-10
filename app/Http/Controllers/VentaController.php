@@ -19,7 +19,13 @@ class VentaController extends Controller
 {
     public function index(Request $request)
     {
+        $busqueda = $request->validate([
+            'buscar_cliente' => ['nullable', 'string', 'max:255'],
+            'buscar_producto' => ['nullable', 'string', 'max:255'],
+        ]);
         $filtros = [
+            'buscar_cliente' => trim($busqueda['buscar_cliente'] ?? ''),
+            'buscar_producto' => trim($busqueda['buscar_producto'] ?? ''),
             'cliente_id' => $request->input('cliente_id'),
             'producto_id' => $request->input('producto_id'),
             'chasis' => $request->input('chasis'),
@@ -29,17 +35,6 @@ class VentaController extends Controller
             'fecha_hasta' => $request->input('fecha_hasta'),
         ];
 
-        $clientes = Cliente::query()
-            ->orderBy('nombre')
-            ->get();
-
-        $productos = Producto::query()
-            ->with('tipo')
-            ->where('activo', true)
-            ->get()
-            ->sortBy(fn($producto) => $this->ordenProducto($producto))
-            ->values();
-
         $consulta = Venta::query()
             ->with([
                 'cliente',
@@ -48,16 +43,24 @@ class VentaController extends Controller
                 'detalles.asignaciones.unidad.planProducto.plan.avances.etapa',
             ]);
 
-        if ($filtros['cliente_id']) {
+        if ($filtros['buscar_cliente'] !== '') {
+            $texto = '%'.$filtros['buscar_cliente'].'%';
+            $consulta->whereHas('cliente', fn ($query) => $query
+                ->where('nombre', 'like', $texto)
+                ->orWhere('CodSistema', 'like', $texto)
+                ->orWhere('cuit', 'like', $texto));
+        } elseif ($filtros['cliente_id']) {
             $consulta->where('cliente_id', $filtros['cliente_id']);
         }
 
-        if ($filtros['producto_id']) {
-            $consulta->whereHas('detalles', function ($query) use ($filtros) {
-                $query->where('producto_id', $filtros['producto_id']);
-            });
+        if ($filtros['buscar_producto'] !== '') {
+            $texto = '%'.$filtros['buscar_producto'].'%';
+            // El catálogo está en la conexión del Cotizador.
+            $ids = Producto::where('nombre', 'like', $texto)->orWhere('codigo', 'like', $texto)->pluck('id');
+            $consulta->whereHas('detalles', fn ($query) => $query->whereIn('producto_id', $ids));
+        } elseif ($filtros['producto_id']) {
+            $consulta->whereHas('detalles', fn ($query) => $query->where('producto_id', $filtros['producto_id']));
         }
-
         if ($filtros['chasis']) {
             $consulta->whereHas(
                 'detalles.asignaciones.unidad',
@@ -175,6 +178,7 @@ class VentaController extends Controller
             ->all();
 
         $unidadesDisponibles = UnidadProduccion::query()
+            ->sinUsados()
             ->whereNotIn('estado', ['entregada', 'cancelada'])
             ->whereHas('planProducto.plan',fn($q)=>$q->where('estado','!=','cancelado'))
             ->whereDoesntHave('avances', fn ($q) => $q->where('estado', 'completada')->whereHas('etapa', fn ($e) => $e->where('codigo', 'ENTREGADO')))
@@ -219,8 +223,6 @@ class VentaController extends Controller
             'ventas.index',
             compact(
                 'ventas',
-                'clientes',
-                'productos',
                 'filtros',
                 'familias',
                 'productosDisponibles',
@@ -270,6 +272,8 @@ class VentaController extends Controller
         }
 
         if ($unidadSeleccionada) {
+            abort_unless($unidadSeleccionada->planProducto?->producto?->esImplemento(), 422, 'Solo se asignan chasis a implementos.');
+            abort_if($unidadSeleccionada->esUsada(), 422, 'El chasis está clasificado como usado.');
             abort_if($unidadSeleccionada->planProducto?->plan?->estado==='cancelado',422,'El plan está anulado.');
             abort_if(in_array($unidadSeleccionada->estado, ['entregada','cancelada']) || $unidadSeleccionada->avances()->where('estado','completada')->whereHas('etapa',fn($q)=>$q->where('codigo','ENTREGADO'))->exists(),422,'La unidad no está disponible.');
         }
@@ -385,6 +389,10 @@ class VentaController extends Controller
                     $error = null;
                     if (!$unidad || (int) $unidad->planProducto?->producto_id !== (int) $detalle['producto_id']) {
                         $error = 'El chasis no corresponde al producto seleccionado.';
+                    } elseif (!$unidad->planProducto?->producto?->esImplemento()) {
+                        $error = 'Solo se asignan chasis a implementos.';
+                    } elseif ($unidad->esUsada()) {
+                        $error = 'El chasis está clasificado como usado.';
                     } elseif ($unidad->planProducto?->plan?->estado==='cancelado') {
                         $error = 'El plan de esta unidad está anulado.';
                     } elseif (in_array($unidad->estado, ['entregada','cancelada']) || $unidad->avances()->where('estado','completada')->whereHas('etapa',fn($q)=>$q->where('codigo','ENTREGADO'))->exists()) {
@@ -537,6 +545,9 @@ class VentaController extends Controller
             'estado' => ['required', 'in:borrador,confirmada,entregada,anulada'],
             'observaciones' => ['nullable', 'string'],
 
+            'quitar_detalles' => ['nullable', 'array'],
+            'quitar_detalles.*' => ['integer', 'min:1', 'distinct'],
+
             'detalles' => ['nullable', 'array'],
             'detalles.*.cantidad' => ['required', 'numeric', 'min:0.01'],
             'detalles.*.precio_unitario' => ['required', 'numeric', 'min:0'],
@@ -550,6 +561,23 @@ class VentaController extends Controller
         abort_if($datos['estado'] === 'anulada',422,'Para anular, usá el botón Anular venta y conservar la liberación e historial.');
 
         DB::transaction(function () use ($datos, $venta) {
+            $venta = Venta::whereKey($venta->id)->lockForUpdate()->firstOrFail();
+            abort_if($venta->estado === 'anulada', 422, 'No se puede editar una venta anulada.');
+
+            $idsQuitar = $datos['quitar_detalles'] ?? [];
+            $detallesQuitar = $venta->detalles()->whereKey($idsQuitar)->lockForUpdate()->get();
+            if ($detallesQuitar->count() !== count($idsQuitar)) {
+                throw ValidationException::withMessages(['quitar_detalles' => 'Alguno de los productos seleccionados ya no pertenece a esta venta.']);
+            }
+            if ($idsQuitar && $venta->detalles()->count() === count($idsQuitar) && empty($datos['nuevos_productos'])) {
+                throw ValidationException::withMessages(['quitar_detalles' => 'La venta debe conservar al menos un producto.']);
+            }
+            foreach ($detallesQuitar as $detalle) {
+                if ($detalle->asignaciones()->exists()) {
+                    throw ValidationException::withMessages(['quitar_detalles' => 'No se puede quitar un producto con historial de asignación de chasis.']);
+                }
+                $detalle->delete();
+            }
             $venta->update([
                 'cliente_id' => $datos['cliente_id'],
                 'fecha' => $datos['fecha'],
@@ -558,7 +586,7 @@ class VentaController extends Controller
                 'observaciones' => $datos['observaciones'] ?? null,
             ]);
 
-            foreach ($datos['detalles'] ?? [] as $detalleId => $detalleDatos) {
+            foreach (array_diff_key($datos['detalles'] ?? [], array_flip($idsQuitar)) as $detalleId => $detalleDatos) {
                 $detalle = $venta->detalles()
                     ->whereKey($detalleId)
                     ->with('asignaciones')
@@ -610,6 +638,7 @@ class VentaController extends Controller
                 'user_id' => $this->usuarioIdValido(),
                 'accion' => 'venta_editada',
                 'valor_nuevo' => json_encode([
+                    'productos_quitados' => $detallesQuitar->pluck('producto_id')->all(),
                     'productos_agregados' => count($datos['nuevos_productos'] ?? []),
                     'total' => $venta->total,
                 ]),

@@ -21,7 +21,7 @@ dialog.buscador-productos{width:min(1100px,95vw);max-height:90vh;padding:0;borde
 </tr>@endforeach
 </tbody></table></div>
 <div id="buscador-sin-resultados" class="text-center text-muted p-4" hidden>No hay productos que coincidan. Probá con otro código o limpiá los filtros.</div>
-<p class="small text-muted mt-2 mb-0">Se muestran productos activos del Cotizador. Seleccioná un producto para completar la fila desde la que abriste el buscador.</p>
+<p class="small text-muted mt-2 mb-0">{{ $ayudaBuscador ?? 'Se muestran productos activos del Cotizador. Seleccioná un producto para completar la fila desde la que abriste el buscador.' }}</p>
 </div>
 </dialog>
 <script>

@@ -9,7 +9,7 @@
                 <div class="text-center mb-4">
                     <h1 class="mb-2">Producción móvil</h1>
                     <p class="text-muted mb-0">
-                        Escaneá el QR de la ficha o buscá por plan y chasis
+                        Buscá por número de plan para ver avances globales o escaneá el QR de un chasis.
                     </p>
                 </div>
 
@@ -44,15 +44,15 @@
 
                             <div class="mb-4">
                                 <label for="chasis" class="form-label fw-semibold">
-                                    Número de chasis
+                                    Número de chasis (opcional)
                                 </label>
 
                                 <input type="text" id="chasis" name="chasis" class="form-control form-control-lg"
-                                    value="{{ $unidad?->chasis ?? request('chasis') }}" placeholder="Ejemplo: 20517" required>
+                                    value="{{ $unidad?->chasis ?? request('chasis') }}" placeholder="Dejalo vacío para ver los sectores del plan">
                             </div>
 
                             <button type="submit" class="btn btn-primary btn-lg w-100">
-                                Buscar unidad
+                                Buscar plan o chasis
                             </button>
                         </form>
 
@@ -69,6 +69,10 @@
                     <div class="alert alert-warning">
                         {{ $mensaje }}
                     </div>
+                @endif
+
+                @if ($plan && !$unidad && !$mensaje)
+                    @include('produccion.movil.sectores')
                 @endif
 
                 @if ($unidad)

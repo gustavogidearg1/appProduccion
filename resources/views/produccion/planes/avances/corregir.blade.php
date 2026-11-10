@@ -16,8 +16,8 @@
 <div class="col-md-4"><label class="form-label">Estado</label><select class="form-select" name="estado" required>
 @foreach (['pendiente'=>'Pendiente','en_proceso'=>'En proceso','completada'=>'Completada'] as $valor=>$texto)<option value="{{ $valor }}" @selected(old('estado',$avance?->estado ?? 'pendiente')===$valor)>{{ $texto }}</option>@endforeach
 </select></div>
-<div class="col-md-4"><label class="form-label">Inicio real</label><input type="datetime-local" step="1" class="form-control" name="fecha_inicio" value="{{ old('fecha_inicio',$avance?->fecha_inicio?->format('Y-m-d\TH:i:s')) }}"></div>
-<div class="col-md-4"><label class="form-label">Finalización real</label><input type="datetime-local" step="1" class="form-control" name="fecha_fin" value="{{ old('fecha_fin',$avance?->fecha_fin?->format('Y-m-d\TH:i:s')) }}"></div>
+<div class="col-md-4"><label class="form-label">Inicio real</label><input type="date" class="form-control" name="fecha_inicio" value="{{ old('fecha_inicio',$avance?->fecha_inicio?->format('Y-m-d')) }}"></div>
+<div class="col-md-4"><label class="form-label">Finalización real</label><input type="date" class="form-control" name="fecha_fin" value="{{ old('fecha_fin',$avance?->fecha_fin?->format('Y-m-d')) }}"></div>
 <div class="col-12 small text-muted">Para Pendiente, borrá ambas fechas. Para En proceso, indicá solo el inicio. Para Completada, indicá ambas fechas. Se usa el mismo horario mostrado en Avances.</div>
 <div class="col-12"><label class="form-label">Observaciones del avance</label><textarea name="observaciones" class="form-control" maxlength="5000">{{ old('observaciones',$avance?->observaciones) }}</textarea></div>
 <div class="col-12"><label class="form-label">Motivo de la corrección</label><textarea name="motivo" class="form-control" maxlength="5000" required>{{ old('motivo') }}</textarea></div>

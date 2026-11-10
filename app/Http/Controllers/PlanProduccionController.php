@@ -35,6 +35,9 @@ class PlanProduccionController extends Controller
 
         if (is_string($request->input('chasis'))) $request->merge(['chasis' => trim($request->input('chasis'))]);
         $filtros = $request->validate([
+            'plan_id' => ['nullable', 'integer', 'min:1'],
+            'numero_plan' => ['nullable', 'integer', 'min:1', 'max:4294967295'],
+            'buscar_producto' => ['nullable', 'string', 'max:255'],
             'familia_id' => ['nullable', 'integer', Rule::exists(Familia::class, 'id')],
             'producto_id' => ['nullable', 'integer', Rule::exists(Producto::class, 'id')],
             'chasis' => ['nullable', 'string', 'max:100'],
@@ -80,6 +83,13 @@ class PlanProduccionController extends Controller
                 ->orderByDesc('id'),
         ]);
 
+        if (!empty($filtros['numero_plan'])) {
+            $consulta->where('numero', $filtros['numero_plan']);
+        } elseif (!empty($filtros['plan_id'])) {
+            $filtros['numero_plan'] = PlanProduccion::whereKey($filtros['plan_id'])->value('numero');
+            $consulta->whereKey($filtros['plan_id']);
+        }
+
         if (!empty($filtros['fecha_desde'])) {
             $consulta->whereDate(
                 'fecha_planificada',
@@ -105,11 +115,16 @@ class PlanProduccionController extends Controller
 
         // Los productos pertenecen a cotizador: primero resolvemos sus IDs allí.
         $familias = Familia::orderBy('nombre')->get(['id','nombre']);
-        $productosFiltro = Producto::orderBy('nombre')->get(['id','nombre','familia_id']);
-        $filtraProducto = !empty($filtros['familia_id']) || !empty($filtros['producto_id']);
+        $productosFiltro = Producto::with(['familia','tipo'])->orderBy('nombre')->get();
+        $textoProducto = trim($filtros['buscar_producto'] ?? '');
+        $idsTexto = $textoProducto !== '' && empty($filtros['producto_id'])
+            ? Producto::where('nombre', 'like', '%'.$textoProducto.'%')
+                ->orWhere('codigo', 'like', '%'.$textoProducto.'%')->pluck('id')->flip()
+            : null;
+        $filtraProducto = !empty($filtros['familia_id']) || !empty($filtros['producto_id']) || $idsTexto !== null;
         $productoIds = $productosFiltro->filter(fn ($producto) =>
             (empty($filtros['familia_id']) || (int)$producto->familia_id === (int)$filtros['familia_id']) &&
-            (empty($filtros['producto_id']) || (int)$producto->id === (int)$filtros['producto_id'])
+            (empty($filtros['producto_id']) || (int)$producto->id === (int)$filtros['producto_id']) && ($idsTexto === null || $idsTexto->has($producto->id))
         )->pluck('id')->all();
         $filtrarUnidad = function ($query) use ($filtros) {
             if (!empty($filtros['chasis'])) $query->where('chasis','like','%'.$filtros['chasis'].'%');

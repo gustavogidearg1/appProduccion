@@ -44,34 +44,10 @@
                 <div class="card-body">
                     <div class="row g-3">
 
-                        <div class="col-md-4">
-                            <label for="cliente_id" class="form-label">
-                                Cliente
-                            </label>
-
-                            <select
-                                id="cliente_id"
-                                name="cliente_id"
-                                class="form-select"
-                                required
-                            >
-                                @foreach ($clientes as $cliente)
-                                    <option
-                                        value="{{ $cliente->id }}"
-                                        @selected(
-                                            old(
-                                                'cliente_id',
-                                                $venta->cliente_id
-                                            ) == $cliente->id
-                                        )
-                                    >
-                                        {{ $cliente->nombre }}
-                                    </option>
-                                @endforeach
-                            </select>
+                        <div class="col-md-3">
+                            <x-buscador-clientes :clientes="$clientes" :seleccion="old('cliente_id', $venta->cliente_id)" />
                         </div>
-
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label for="fecha" class="form-label">
                                 Fecha
                             </label>
@@ -89,7 +65,9 @@
                             >
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3"><label class="form-label" for="fecha_entrega_pactada">Entrega pactada / solicitada</label><input type="date" id="fecha_entrega_pactada" name="fecha_entrega_pactada" class="form-control" value="{{ old('fecha_entrega_pactada', $venta->fecha_entrega_pactada?->format('Y-m-d')) }}"><div class="small text-muted">Opcional. Compromiso con el cliente; separado de la estimación de producción.</div></div>
+
+                        <div class="col-md-3">
                             <label for="estado" class="form-label">
                                 Estado
                             </label>
@@ -121,7 +99,6 @@
                             </select>
                         </div>
 
-                        <div class="col-md-4"><label class="form-label" for="fecha_entrega_pactada">Entrega pactada / solicitada</label><input type="date" id="fecha_entrega_pactada" name="fecha_entrega_pactada" class="form-control" value="{{ old('fecha_entrega_pactada', $venta->fecha_entrega_pactada?->format('Y-m-d')) }}"><div class="small text-muted">Opcional. Compromiso con el cliente; separado de la estimación de producción.</div></div>
                     <div class="col-12">
                             <label
                                 for="observaciones"
@@ -147,7 +124,7 @@
 
             <div class="card shadow-sm mb-4">
                 <div class="card-header">
-                    Productos actuales
+                    Productos actuales <span class="small text-muted ms-2">Los renglones marcados se quitan al guardar.</span>
                 </div>
 
                 <div class="card-body p-0">
@@ -160,6 +137,7 @@
                                     <th>Cantidad</th>
                                     <th>Precio unitario</th>
                                     <th>Chasis y entrega estimada</th>
+                                    <th>Acciones</th>
                                 </tr>
                             </thead>
 
@@ -238,6 +216,16 @@
                                                 <span class="text-muted">
                                                     Sin asignar
                                                 </span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($detalle->asignaciones->isEmpty())
+                                                <input type="checkbox" class="btn-check" id="quitar-{{ $detalle->id }}"
+                                                       name="quitar_detalles[]" value="{{ $detalle->id }}"
+                                                       @checked(in_array($detalle->id, old('quitar_detalles', [])))>
+                                                <label class="btn btn-sm btn-outline-danger text-nowrap" for="quitar-{{ $detalle->id }}">Quitar</label>
+                                            @else
+                                                <span class="small text-muted">Con historial de chasis</span>
                                             @endif
                                         </td>
                                     </tr>

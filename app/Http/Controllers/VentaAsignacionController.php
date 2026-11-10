@@ -18,7 +18,10 @@ class VentaAsignacionController extends Controller
             'producto.familia',
         ]);
 
+        abort_unless($ventaDetalle->producto?->esImplemento(), 422, 'Solo se asignan chasis a implementos.');
+
         $unidades = UnidadProduccion::query()
+            ->sinUsados()
             ->whereNotIn('estado',['entregada','cancelada'])
             ->whereHas('planProducto.plan',fn($q)=>$q->where('estado','!=','cancelado'))
             ->whereDoesntHave('avances',fn($q)=>$q->where('estado','completada')->whereHas('etapa',fn($e)=>$e->where('codigo','ENTREGADO')))
@@ -95,6 +98,7 @@ class VentaAsignacionController extends Controller
         ) {
             $ventaDetalle = VentaDetalle::query()->whereKey($ventaDetalle->id)
                 ->lockForUpdate()->firstOrFail();
+            abort_unless($ventaDetalle->producto?->esImplemento(), 422, 'Solo se asignan chasis a implementos.');
             abort_if($ventaDetalle->venta->estado === 'anulada', 422, 'No se puede reservar en una venta anulada.');
             abort_if(
                 $ventaDetalle->asignaciones()->whereIn('estado', ['reservada', 'asignada'])->count() + 1 > (float) $ventaDetalle->cantidad,
@@ -111,6 +115,7 @@ class VentaAsignacionController extends Controller
                 422,
                 'El chasis no corresponde al producto de la venta.'
             );
+            abort_if($unidad->esUsada(), 422, 'El chasis está clasificado como usado.');
             abort_if($unidad->planProducto?->plan?->estado==='cancelado',422,'El plan está anulado.');
             abort_if(in_array($unidad->estado,['entregada','cancelada']) || $unidad->avances()->where('estado','completada')->whereHas('etapa',fn($q)=>$q->where('codigo','ENTREGADO'))->exists(),422,'La unidad ya no está disponible.');
             $yaAsignada = VentaAsignacion::query()

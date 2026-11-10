@@ -1,13 +1,10 @@
 @props(['id', 'name', 'planes', 'seleccion' => null])
 
-@php($elegido = collect($planes)->first(fn ($plan) => (string) $plan['id'] === (string) $seleccion))
-
 <div data-buscador-planes>
-    <label class="form-label" for="{{ $id }}">Plan</label>
-    <input type="hidden" name="{{ $name }}" value="{{ $elegido['id'] ?? '' }}">
+    <label class="form-label" for="{{ $id }}">#Plan</label>
     <div class="input-group">
-        <input type="text" class="form-control" id="{{ $id }}" readonly
-               value="{{ $elegido ? 'Plan #'.$elegido['numero'] : 'Todos los planes' }}">
+        <input type="number" min="1" max="4294967295" class="form-control" id="{{ $id }}"
+               name="{{ $name }}" value="{{ $seleccion }}" placeholder="Ej. 709">
         <button type="button" class="btn btn-outline-primary" data-abrir aria-haspopup="dialog"
                 aria-controls="{{ $id }}-modal">
             <i class="bi bi-search" aria-hidden="true"></i> Buscar plan
@@ -21,26 +18,29 @@
             <button type="button" class="btn-close btn-close-white" data-cerrar aria-label="Cerrar buscador"></button>
         </div>
         <div class="p-3">
-            <label class="form-label" for="{{ $id }}-texto">Número de plan o producto</label>
+            <label class="form-label" for="{{ $id }}-texto">Número de plan, descripción o código de producto</label>
             <input type="search" class="form-control mb-3" id="{{ $id }}-texto" autocomplete="off"
-                   placeholder="Ej. 979 o MH-14">
+                   placeholder="Ej. 979, MH-14 o 5400">
             <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
                 <span class="small text-muted" role="status"></span>
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-elegir=""
-                        data-etiqueta="Todos los planes">Todos los planes</button>
+                        >Todos los planes</button>
             </div>
             <div class="overflow-auto" style="max-height:50vh">
                 <table class="table table-bordered table-hover align-middle mb-0">
                     <thead class="sticky-top table-light">
-                        <tr><th>Plan</th><th>Productos</th><th>Acción</th></tr>
+                        <tr><th>Plan</th><th>Descripción y productos</th><th>Acción</th></tr>
                     </thead>
                     <tbody>
                         @foreach ($planes as $plan)
                             <tr data-plan>
                                 <th scope="row">#{{ $plan['numero'] }}</th>
-                                <td>{{ $plan['productos'] ?: '—' }}</td>
+                                <td>
+                                    @if ($plan['descripcion'])<div>{{ $plan['descripcion'] }}</div>@endif
+                                    <div class="small text-muted">{{ $plan['productos'] ?: '—' }}</div>
+                                </td>
                                 <td><button type="button" class="btn btn-sm btn-success"
-                                            data-elegir="{{ $plan['id'] }}" data-etiqueta="Plan #{{ $plan['numero'] }}">Seleccionar</button></td>
+                                            data-elegir="{{ $plan['numero'] }}">Seleccionar</button></td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -94,8 +94,7 @@
                 modal.addEventListener('click', evento => {
                     const boton = evento.target.closest('[data-elegir]');
                     if (!boton) return;
-                    buscador.querySelector('input[type="hidden"]').value = boton.dataset.elegir;
-                    buscador.querySelector('input[readonly]').value = boton.dataset.etiqueta;
+                    buscador.querySelector('input[type="number"]').value = boton.dataset.elegir;
                     modal.close();
                 });
             }

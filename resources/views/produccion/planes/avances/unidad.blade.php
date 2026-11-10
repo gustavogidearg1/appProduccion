@@ -5,7 +5,7 @@
 
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h1>Avance de producción</h1>
+            <h1>Avance individual · Chasis {{ $unidad->chasis ?: 'sin cargar' }}</h1>
 
             <p class="text-muted mb-0">
                 Plan #{{ $plan->numero }} -

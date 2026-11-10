@@ -46,6 +46,42 @@ class User extends Authenticatable
 
     protected string $guard_name = 'web';
 
+    public function administraAvancesGlobales(): bool
+    {
+        return $this->activo && $this->hasAnyRole(['admin_sitio', 'admin_empresa']);
+    }
+
+    public function puedeOperarEtapaGlobal(EtapaProduccion $etapa): bool
+    {
+        if ($this->administraAvancesGlobales()) {
+            return true;
+        }
+
+        if (!$this->activo || !$this->hasRole('empleado')
+            || !in_array($etapa->codigo, \App\Services\SectoresProduccion::CODIGOS, true)) {
+            return false;
+        }
+
+        $normalizar = fn ($valor) => \Illuminate\Support\Str::slug((string) $valor, '_');
+        $codigo = $normalizar($etapa->codigo);
+        $equivalencias = [
+            'plegado' => ['pleg'],
+            'mezanizado' => ['mecanizado'],
+            'linea_montaje' => ['linea_de_montaje'],
+        ];
+
+        return $this->sectors->contains(function (Sector $sector) use ($normalizar, $codigo, $equivalencias) {
+            if (!$sector->active || !$sector->pivot->active || $sector->company_id != $this->company_id) {
+                return false;
+            }
+
+            $identificadores = [$codigo, ...($equivalencias[$codigo] ?? [])];
+
+            return in_array($normalizar($sector->code), $identificadores, true)
+                || in_array($normalizar($sector->name), $identificadores, true);
+        });
+    }
+
     public function sectors(): BelongsToMany
     {
         return $this->belongsToMany(

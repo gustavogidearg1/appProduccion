@@ -43,6 +43,11 @@ class Producto extends Model
     );
 }
 
+    public function esImplemento(): bool
+    {
+        return strtolower(trim($this->tipo?->nombre ?? '')) === 'implemento';
+    }
+
 public function tipo(): BelongsTo
 {
     return $this->belongsTo(

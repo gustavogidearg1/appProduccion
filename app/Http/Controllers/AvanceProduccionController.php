@@ -211,6 +211,7 @@ class AvanceProduccionController extends Controller
     }
 
     public function corregirFechasPlan(Request $request, PlanProduccion $plan, EtapaProduccion $etapa) {
+        abort_unless(auth()->user()?->administraAvancesGlobales(), 403, 'No tenés permiso para modificar este avance global.');
         abort_if($plan->estado==='cancelado',422,'El plan está anulado. Reactivalo antes de modificar avances.');
 
         abort_unless($etapa->alcance==='plan' && $etapa->activo,404);
@@ -266,6 +267,7 @@ class AvanceProduccionController extends Controller
     PlanProduccion $plan,
     EtapaProduccion $etapa
 ) {
+        abort_unless(auth()->user()?->administraAvancesGlobales(), 403, 'No tenés permiso para modificar este avance global.');
         abort_if($plan->estado==='cancelado',422,'El plan está anulado. Reactivalo antes de modificar avances.');
 
     if (
@@ -316,6 +318,7 @@ class AvanceProduccionController extends Controller
         PlanProduccion $plan,
         EtapaProduccion $etapa
     ) {
+        abort_unless(auth()->user()?->puedeOperarEtapaGlobal($etapa), 403, 'No tenés permiso para modificar este avance global.');
         abort_if($plan->estado==='cancelado',422,'El plan está anulado. Reactivalo antes de modificar avances.');
 
         if ($etapa->alcance !== 'plan' || !$etapa->activo) {
@@ -377,6 +380,7 @@ class AvanceProduccionController extends Controller
         PlanProduccion $plan,
         EtapaProduccion $etapa
     ) {
+        abort_unless(auth()->user()?->puedeOperarEtapaGlobal($etapa), 403, 'No tenés permiso para modificar este avance global.');
         abort_if($plan->estado==='cancelado',422,'El plan está anulado. Reactivalo antes de modificar avances.');
 
         if ($etapa->alcance !== 'plan' || !$etapa->activo) {

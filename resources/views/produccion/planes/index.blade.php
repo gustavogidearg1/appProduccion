@@ -30,7 +30,8 @@
 
         @if ($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
-        <div class="card shadow-sm mb-4">
+        <details class="card shadow-sm mb-4">
+            <summary class="card-header fw-semibold">Filtros de planes</summary>
             <div class="card-body">
                 <form method="GET" action="{{ route('planes.index') }}">
                     <div class="row g-3 align-items-end">
@@ -106,16 +107,26 @@
                                 @foreach ($familias as $familia)<option value="{{ $familia->id }}" @selected((string)($filtros['familia_id'] ?? '') === (string)$familia->id)>{{ $familia->nombre }}</option>@endforeach
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label for="producto_id" class="form-label">Producto</label>
-                            <select name="producto_id" id="producto_id" class="form-select">
-                                <option value="">Todos los productos</option>
-                                @foreach ($productosFiltro as $producto)<option value="{{ $producto->id }}" data-familia="{{ $producto->familia_id }}" @selected((string)($filtros['producto_id'] ?? '') === (string)$producto->id)>{{ $producto->nombre }}</option>@endforeach
-                            </select>
+                        <div class="col-md-3">
+                            <label for="buscar_producto" class="form-label">Producto</label>
+                            <input type="hidden" name="producto_id" id="producto_id" value="{{ $filtros['producto_id'] ?? '' }}">
+                            <div class="input-group" id="producto-filtro-plan">
+                                <input type="search" name="buscar_producto" id="buscar_producto" class="form-control" maxlength="255"
+                                       placeholder="Nombre o código" value="{{ $productosFiltro->firstWhere('id', $filtros['producto_id'] ?? null)?->nombre ?? ($filtros['buscar_producto'] ?? '') }}">
+                                <button type="button" class="btn btn-outline-primary" onclick="window.buscadorProductos.abrir(this.parentElement)"
+                                        aria-label="Buscar producto" aria-haspopup="dialog" title="Buscar producto">
+                                    <i class="bi bi-search" aria-hidden="true"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-3">
                             <label for="chasis" class="form-label">Chasis</label>
                             <input type="search" name="chasis" id="chasis" class="form-control" maxlength="100" placeholder="Completo o parte del número" value="{{ $filtros['chasis'] ?? '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="plan-listado" class="form-label">#Plan</label>
+                            <input type="number" min="1" max="4294967295" id="plan-listado" name="numero_plan"
+                                   class="form-control" placeholder="Ej. 7" value="{{ $filtros['numero_plan'] ?? '' }}">
                         </div>
                         <div class="col-md-2 d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
@@ -131,7 +142,7 @@
                     </div>
                 </form>
             </div>
-        </div>
+        </details>
 
         <div class="card shadow-sm">
             <div class="card-body">
@@ -162,6 +173,9 @@
                                         @foreach ($plan->planProductos as $planProducto)
                                             <div>
                                                 {{ $planProducto->producto?->nombre ?? 'Producto no encontrado' }}
+                                                @if (filled($planProducto->producto?->codigo))
+                                                    <span class="text-muted">({{ $planProducto->producto->codigo }})</span>
+                                                @endif
 
                                                 <small class="text-muted">
                                                     (Cantidad:
@@ -237,20 +251,18 @@
         </div>
 
     </div>
+    @include('components.buscador-productos', [
+        'productos' => $productosFiltro,
+        'ayudaBuscador' => 'Seleccioná un producto para completar el filtro.',
+    ])
     <script>
-        (() => {
-            const familia = document.getElementById('familia_id');
-            const producto = document.getElementById('producto_id');
-            function filtrarProductos(resetear) {
-                for (const opcion of producto.options) {
-                    const visible = !opcion.value || !familia.value || opcion.dataset.familia === familia.value;
-                    opcion.hidden = !visible;
-                    opcion.disabled = !visible;
-                }
-                if (resetear && producto.selectedOptions[0]?.disabled) producto.value = '';
-            }
-            familia.addEventListener('change', () => filtrarProductos(true));
-            filtrarProductos(false);
-        })();
+        const filtroProductoPlan = document.getElementById('producto-filtro-plan');
+        const textoProductoPlan = document.getElementById('buscar_producto');
+        const idProductoPlan = document.getElementById('producto_id');
+        textoProductoPlan.addEventListener('input', () => { idProductoPlan.value = ''; });
+        filtroProductoPlan.addEventListener('producto-seleccionado', ({detail}) => {
+            idProductoPlan.value = detail.id;
+            textoProductoPlan.value = detail.nombre;
+        });
     </script>
 @endsection

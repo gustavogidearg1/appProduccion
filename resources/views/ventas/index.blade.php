@@ -232,37 +232,16 @@
                         </div>
 
                         <div class="col-md-2">
-                            <label for="cliente_id" class="form-label">
-                                Cliente
-                            </label>
-
-                            <select name="cliente_id" id="cliente_id" class="form-select">
-                                <option value="">Todos</option>
-
-                                @foreach ($clientes as $cliente)
-                                    <option value="{{ $cliente->id }}" @selected((string) ($filtros['cliente_id'] ?? '') === (string) $cliente->id)>
-                                        {{ $cliente->nombre }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <label for="buscar_cliente" class="form-label">Cliente</label>
+                            <input type="search" id="buscar_cliente" name="buscar_cliente" class="form-control"
+                                   maxlength="255" placeholder="Nombre, código o CUIT" value="{{ $filtros['buscar_cliente'] }}">
                         </div>
 
                         <div class="col-md-2">
-                            <label for="producto_id" class="form-label">
-                                Producto
-                            </label>
-
-                            <select name="producto_id" id="producto_id" class="form-select">
-                                <option value="">Todos</option>
-
-                                @foreach ($productos as $producto)
-                                    <option value="{{ $producto->id }}" @selected((string) ($filtros['producto_id'] ?? '') === (string) $producto->id)>
-                                        {{ $producto->nombre }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <label for="buscar_producto" class="form-label">Producto</label>
+                            <input type="search" id="buscar_producto" name="buscar_producto" class="form-control"
+                                   maxlength="255" placeholder="Nombre o código" value="{{ $filtros['buscar_producto'] }}">
                         </div>
-
                         <div class="col-md-2">
                             <label for="chasis" class="form-label">
                                 Chasis

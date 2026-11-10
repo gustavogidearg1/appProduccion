@@ -68,7 +68,7 @@ class EstimadorEntrega {
         if ($plan?->fecha_fin_planificada) $explicacion[]='Finalización planificada original del plan: '.$plan->fecha_fin_planificada->format('d/m/Y').'.';
         if ($original) $explicacion[]='Previsión de referencia: '.$original->format('d/m/Y').' (respeta la finalización planificada del plan si es posterior).';
         $prevista=$original ? $this->sumarHabiles($original,$impacto) : null;
-        $vencida=($prevista && $prevista->lessThan($hoy)) || ($plan?->fecha_fin_planificada && $plan->fecha_fin_planificada->toDateString()<$hoy->toDateString());
+        $vencida = !$desdeHoy && (($prevista && $prevista->lessThan($hoy)) || ($plan?->fecha_fin_planificada && $plan->fecha_fin_planificada->toDateString() < $hoy->toDateString()));
         if ($desdeHoy) {
             $fecha=$this->sumarHabiles($this->sumarHabiles($hoy,$dias),$impacto);
             $explicacion[]='Modo desde hoy: '.$hoy->format('d/m/Y').' + '.$dias.' días hábiles.';

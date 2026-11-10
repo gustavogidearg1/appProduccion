@@ -12,6 +12,18 @@ class UnidadProduccion extends Model
 {
     use HasFactory;
 
+    public const CLIENTE_USADO = 'Usado';
+
+    public function scopeSinUsados($query)
+    {
+        return $query->whereDoesntHave('cliente', fn ($cliente) => $cliente->where('nombre', self::CLIENTE_USADO));
+    }
+
+    public function esUsada(): bool
+    {
+        return $this->cliente?->nombre === self::CLIENTE_USADO;
+    }
+
     protected $table = 'unidades_produccion';
 
     protected $fillable = [
