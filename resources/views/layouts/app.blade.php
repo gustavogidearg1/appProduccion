@@ -38,6 +38,7 @@
             }
         }
     </style>
+    @include('layouts.pwa-produccion')
 </head>
 
 <body class="bg-light">
