@@ -330,6 +330,7 @@ class PlanProduccionController extends Controller
                 ]);
                 if(isset($datos['chasis_inicial'][$indice]) && $datos['chasis_inicial'][$indice]!=='')\App\Services\GenerarUnidadesPlan::generar($plan,$linea,$datos['chasis_inicial'][$indice]);
             }
+            \App\Services\PrecargarPlanificacion::crear($plan);
         });
 
         return redirect()
