@@ -67,6 +67,7 @@
         <i class="bi bi-check2-square me-2"></i>
         Controles de calidad
     </a>
+    <a href="{{ route('hallazgos.index') }}" class="nav-link text-white rounded {{ request()->routeIs('hallazgos.*') ? 'bg-warning text-dark' : '' }}"><i class="bi bi-exclamation-triangle me-2"></i>Hallazgos de calidad</a>
     <a href="{{ route('calidad.secciones') }}" class="nav-link text-white rounded {{ request()->routeIs('calidad.secciones*') ? 'bg-warning text-dark' : '' }}"><i class="bi bi-list-ol me-2"></i>Secciones por familia</a>
 </nav>
 

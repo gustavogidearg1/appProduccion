@@ -320,3 +320,12 @@ Route::middleware('auth')->group(function(){
  Route::get('/calidad/familias/{familia}/puntos/{indice}/editar',[\App\Http\Controllers\ConfiguracionCalidadController::class,'edit'])->name('calidad.configuracion.editar');
  Route::post('/calidad/familias/{familia}/puntos/{indice}',[\App\Http\Controllers\ConfiguracionCalidadController::class,'guardar'])->name('calidad.configuracion.guardar');
 });
+
+Route::middleware('auth')->prefix('calidad/hallazgos')->name('hallazgos.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\HallazgoCalidadController::class, 'index'])->name('index');
+    Route::get('/nuevo', [\App\Http\Controllers\HallazgoCalidadController::class, 'create'])->name('create');
+    Route::post('/', [\App\Http\Controllers\HallazgoCalidadController::class, 'store'])->name('store');
+    Route::get('/{hallazgo}', [\App\Http\Controllers\HallazgoCalidadController::class, 'show'])->whereNumber('hallazgo')->name('show');
+    Route::post('/{hallazgo}/seguimiento', [\App\Http\Controllers\HallazgoCalidadController::class, 'actualizar'])->whereNumber('hallazgo')->name('actualizar');
+    Route::get('/{hallazgo}/fotos/{movimiento}', [\App\Http\Controllers\HallazgoCalidadController::class, 'foto'])->whereNumber(['hallazgo', 'movimiento'])->name('foto');
+});
