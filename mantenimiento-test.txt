@@ -1,0 +1,10 @@
+
+   PASS  Tests\Feature\MantenimientoTest
+  ✓ fechas no inventa y detecta vencimiento                                                                      0.25s  
+  ✓ circuito preventivo y aislamiento                                                                            0.15s  
+  ✓ orden con historial y cierre                                                                                 0.07s  
+  ✓ fotos correo edicion y anulacion                                                                             0.13s  
+
+  Tests:    4 passed (38 assertions)
+  Duration: 0.88s
+

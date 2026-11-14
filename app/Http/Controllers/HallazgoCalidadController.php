@@ -6,6 +6,8 @@ use App\Models\{HallazgoCalidad as H, HallazgoMovimiento, PlanProduccion, Unidad
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB, Storage};
 use Illuminate\Validation\Rule;
+use App\Mail\HallazgoAsignado;
+use Illuminate\Support\Facades\Mail;
 
 class HallazgoCalidadController extends Controller
 {
@@ -20,7 +22,7 @@ class HallazgoCalidadController extends Controller
         $q->validate(['estado' => ['nullable', Rule::in(['pendientes', 'todos', ...array_keys(H::ESTADOS)])], 'buscar' => 'nullable|string|max:200']);
         $consulta = $this->consulta($q)->with(['responsable', 'plan', 'unidad']);
         $estado = $q->input('estado', 'pendientes');
-        if ($estado === 'pendientes') $consulta->where('estado', '!=', 'cerrado');
+        if ($estado === 'pendientes') $consulta->whereNotIn('estado', ['cerrado', 'anulado']);
         elseif ($estado !== 'todos') $consulta->where('estado', $estado);
         if ($q->filled('buscar')) {
             $texto = $q->string('buscar')->toString();
@@ -40,7 +42,7 @@ class HallazgoCalidadController extends Controller
     public function create(Request $q)
     {
         $this->consulta($q);
-        $usuarios = User::where('activo', true)->where('company_id', $q->user()->company_id)->orderBy('name')->get(['id', 'name']);
+        $usuarios = User::where('activo', true)->where('company_id', $q->user()->company_id)->orderBy('name')->get(['id', 'name', 'email']);
         return view('calidad.hallazgos.crear', compact('usuarios'));
     }
 
@@ -79,7 +81,23 @@ class HallazgoCalidadController extends Controller
                 return $h;
             });
         } catch (\Throwable $e) { if ($foto) Storage::disk('local')->delete($foto); throw $e; }
-        return redirect()->route('hallazgos.show', $h)->with('success', 'Hallazgo registrado y asignado.');
+        $respuesta = redirect()->route('hallazgos.show', $h)->with('success', 'Hallazgo registrado y asignado.');
+        $h->load(['responsable', 'autor', 'plan', 'unidad']);
+        if (!filter_var($h->responsable?->email, FILTER_VALIDATE_EMAIL)) {
+            return $respuesta->with('warning', 'El hallazgo quedó guardado, pero el responsable no tiene un correo válido. No se envió el aviso.');
+        }
+        try {
+            $copias = collect(config('hallazgos.copias', []))->push($h->autor?->email)->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+                ->reject(fn ($email) => strcasecmp($email, $h->responsable->email) === 0)->unique()->values()->all();
+            Mail::to($h->responsable->email)->cc($copias)->send(new HallazgoAsignado($h));
+            if (in_array(config('mail.default'), ['log', 'array'], true)) {
+                return $respuesta->with('warning', 'El correo se preparó en modo de prueba; no se envió a los destinatarios. Falta configurar el servicio de correo.');
+            }
+            return $respuesta->with('success', 'Hallazgo registrado. El aviso se envió al servicio de correo para el responsable y las copias configuradas.');
+        } catch (\Throwable $e) {
+            report($e);
+            return $respuesta->with('warning', 'El hallazgo quedó guardado, pero no se pudo enviar el correo. Revisá la configuración de correo; no vuelvas a cargar el hallazgo.');
+        }
     }
 
     public function show(Request $q, int $hallazgo)
@@ -92,7 +110,7 @@ class HallazgoCalidadController extends Controller
     {
         $this->consulta($q)->findOrFail($hallazgo);
         $d = $q->validate([
-            'accion_form' => ['required', Rule::in(['responder', 'terminar', 'validar', 'devolver'])],
+            'accion_form' => ['required', Rule::in(['responder', 'terminar', 'validar', 'devolver', 'anular'])],
             'version' => 'required|integer', 'detalle' => 'required|string|max:10000',
             'causa' => 'required_if:accion_form,responder|nullable|string|max:10000',
             'contencion' => 'nullable|string|max:10000',
@@ -108,11 +126,11 @@ class HallazgoCalidadController extends Controller
                 $accion = $d['accion_form'];
                 $responsable = in_array($accion, ['responder', 'terminar'], true);
                 abort_unless((int) ($responsable ? $h->responsable_id : $h->autor_id) === (int) $q->user()->id, 403);
-                $permitidos = ['responder' => ['abierto', 'en_accion'], 'terminar' => ['en_accion'], 'validar' => ['por_verificar'], 'devolver' => ['por_verificar']];
+                $permitidos = ['responder' => ['abierto', 'en_accion'], 'terminar' => ['en_accion'], 'validar' => ['por_verificar'], 'devolver' => ['por_verificar'], 'anular' => ['abierto', 'en_accion', 'por_verificar']];
                 abort_unless(in_array($h->estado, $permitidos[$accion], true), 409, 'La acción no corresponde al estado actual.');
                 $anterior = $h->estado;
                 if ($accion === 'responder') $h->fill(collect($d)->only(['causa', 'contencion', 'accion', 'fecha_compromiso'])->all());
-                $h->estado = ['responder' => 'en_accion', 'terminar' => 'por_verificar', 'validar' => 'cerrado', 'devolver' => 'en_accion'][$accion];
+                $h->estado = ['responder' => 'en_accion', 'terminar' => 'por_verificar', 'validar' => 'cerrado', 'devolver' => 'en_accion', 'anular' => 'anulado'][$accion];
                 $h->save();
                 $foto = $q->file('foto')?->store('hallazgos', 'local');
                 $detalle = $d['detalle'];

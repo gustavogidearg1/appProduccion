@@ -329,3 +329,4 @@ Route::middleware('auth')->prefix('calidad/hallazgos')->name('hallazgos.')->grou
     Route::post('/{hallazgo}/seguimiento', [\App\Http\Controllers\HallazgoCalidadController::class, 'actualizar'])->whereNumber('hallazgo')->name('actualizar');
     Route::get('/{hallazgo}/fotos/{movimiento}', [\App\Http\Controllers\HallazgoCalidadController::class, 'foto'])->whereNumber(['hallazgo', 'movimiento'])->name('foto');
 });
+require __DIR__.'/mantenimiento.php';

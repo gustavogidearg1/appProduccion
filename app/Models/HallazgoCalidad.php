@@ -11,7 +11,7 @@ class HallazgoCalidad extends Model
     protected $casts = ['fecha_compromiso' => 'date'];
 
     public const TIPOS = ['NC' => 'No conformidad', 'OBS' => 'Observación', 'OM' => 'Oportunidad de mejora'];
-    public const ESTADOS = ['abierto' => 'Pendiente de respuesta', 'en_accion' => 'En acción', 'por_verificar' => 'Pendiente de verificación', 'cerrado' => 'Cerrado'];
+    public const ESTADOS = ['abierto' => 'Pendiente de respuesta', 'en_accion' => 'En acción', 'por_verificar' => 'Pendiente de verificación', 'cerrado' => 'Cerrado', 'anulado' => 'Anulado'];
     public const ORIGENES = ['Producción interna', 'Posventa', 'Auditoría interna', 'Auditoría externa', 'Modificación de producto'];
 
     public function responsable() { return $this->belongsTo(User::class, 'responsable_id'); }

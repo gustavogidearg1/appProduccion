@@ -4,6 +4,7 @@
 <div class="container-fluid py-4">
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4"><div><h1 class="fw-bold">Tablero de producción</h1><p class="text-muted mb-0">Estados reales, compromiso comercial y planificación</p></div><span class="badge bg-success">Datos del sistema · {{ $hoy->format('d/m/Y') }}</span></div>
 @include('planificacion.mensajes')
+@include('partials.mis-hallazgos')
 <details class="card mb-4">
     <summary class="card-header fw-semibold">Filtros del tablero</summary>
     <form method="GET" action="{{ route('dashboard') }}"><div class="card-body row g-3 align-items-end">
