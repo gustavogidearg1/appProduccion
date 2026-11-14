@@ -14,6 +14,7 @@ class MantenimientoTest extends TestCase {
   DB::purge('sqlite'); DB::purge('club_comofra');
   (require database_path('migrations/2026_11_13_230000_create_mantenimiento.php'))->up();
   (require database_path('migrations/2026_11_14_000000_create_mantenimiento_fotos.php'))->up();
+  (require database_path('migrations/2026_11_14_130000_add_liberacion_mantenimiento.php'))->up();
   Schema::connection('club_comofra')->create('users',function($t){$t->id();$t->string('name');$t->string('email')->nullable();$t->boolean('activo');$t->unsignedBigInteger('company_id');});
   $u=new MantenimientoAdminPrueba; $u->forceFill(['id'=>1,'name'=>'Prueba','activo'=>true,'company_id'=>1]); $this->actingAs($u);
  }
@@ -60,6 +61,28 @@ class MantenimientoTest extends TestCase {
   $this->assertSame(3,DB::table('mantenimiento_movimientos')->count());
   $this->get('/mantenimiento/ordenes?estado=todas')->assertOk()->assertSee('Falla motor');
   $this->get("/mantenimiento/ordenes/$id")->assertOk();
+ }
+ public function test_liberacion_exige_prueba_y_permisos_conservando_historia(): void {
+  $this->post('/mantenimiento/ordenes',['titulo'=>'Prensa','descripcion'=>'Falla','prioridad'=>'alta'])->assertRedirect();
+  $id=DB::table('mantenimiento_ordenes')->value('id');$url="/mantenimiento/ordenes/$id";
+  $d=['detalle'=>'Trabajo registrado','fecha'=>today()->toDateString()];
+  $this->post($url,$d+['accion'=>'iniciar','version'=>1])->assertSessionHasNoErrors();
+  $this->post($url,$d+['accion'=>'finalizar','version'=>2])->assertSessionHasNoErrors();
+  $this->assertSame('pendiente',DB::table('mantenimiento_ordenes')->value('estado_liberacion'));
+  $this->get('/mantenimiento/ordenes')->assertOk()->assertSee('Prensa')->assertViewHas('porLiberar',1);
+  $this->post($url,$d+['accion'=>'liberar','version'=>3])->assertSessionHasErrors('prueba_funcionamiento');
+  $this->post($url,$d+['accion'=>'rechazar','version'=>3,'prueba_funcionamiento'=>'Vibración fuera de criterio'])->assertSessionHasNoErrors();
+  $this->assertSame('en_proceso',DB::table('mantenimiento_ordenes')->value('estado'));
+  $this->post($url,$d+['accion'=>'finalizar','version'=>4])->assertSessionHasNoErrors();
+  DB::table('mantenimiento_ordenes')->where('id',$id)->update(['responsable_id'=>2]);
+  $u=new class extends User { public function administraAvancesGlobales(): bool { return false; } };
+  $u->forceFill(['id'=>2,'name'=>'Responsable','activo'=>true,'company_id'=>1]);$u->setRelation('sectors',collect());$this->actingAs($u);
+  $this->post($url,$d+['accion'=>'liberar','version'=>5,'prueba_funcionamiento'=>'Prueba correcta'])->assertForbidden();
+  $u=new MantenimientoAdminPrueba;$u->forceFill(['id'=>1,'name'=>'Verificador','activo'=>true,'company_id'=>1]);$this->actingAs($u);
+  $this->post($url,$d+['accion'=>'liberar','version'=>5,'prueba_funcionamiento'=>'Prueba bajo carga conforme'])->assertSessionHasNoErrors();
+  $this->assertSame('liberada',DB::table('mantenimiento_ordenes')->value('estado_liberacion'));
+  $this->assertSame(1,DB::table('mantenimiento_ordenes')->value('liberado_por'));
+  $this->get($url)->assertOk()->assertSee('Prueba bajo carga conforme')->assertSee('Vibración fuera de criterio');
  }
  public function test_fotos_correo_edicion_y_anulacion(): void {
   \Illuminate\Support\Facades\Mail::fake();

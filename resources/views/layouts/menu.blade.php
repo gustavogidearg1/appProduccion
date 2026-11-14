@@ -11,24 +11,24 @@
         Tablero
     </a>
 
-    <a href="{{ route('produccion.movil') }}"
-       class="nav-link text-white rounded
-       {{ request()->routeIs('produccion.movil') ? 'bg-warning text-dark' : '' }}">
-        <i class="bi bi-phone me-2"></i>
-        Producción móvil
-    </a>
-
     <a href="{{ route('planes.index') }}"
-       class="nav-link text-white rounded
-       {{ request()->routeIs('planes.*') ? 'bg-warning text-dark' : '' }}">
-        <i class="bi bi-calendar3 me-2"></i>
-        Planes de producción
+       class="nav-link text-white rounded {{ request()->routeIs('planes.*') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-calendar3 me-2"></i>Planes de producción
     </a>
 
-    <a href="#"
-       class="nav-link text-white rounded">
-        <i class="bi bi-box-seam me-2"></i>
-        Chasis
+    <a href="{{ route('produccion.movil') }}"
+       class="nav-link text-white rounded {{ request()->routeIs('produccion.movil') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-phone me-2"></i>Producción móvil
+    </a>
+
+    <a href="{{ route('hallazgos.create') }}"
+       class="nav-link text-white rounded {{ request()->routeIs('hallazgos.create') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-plus-circle me-2"></i>Hallazgo de calidad
+    </a>
+
+    <a href="{{ route('mantenimiento.ordenes.nueva') }}"
+       class="nav-link text-white rounded {{ request()->routeIs('mantenimiento.ordenes.nueva') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-tools me-2"></i>Hallazgo de mantenimiento
     </a>
 
 </nav>
@@ -53,6 +53,11 @@
         Clientes
     </a>
 
+    <a href="{{ route('plazos.index') }}"
+       class="nav-link text-white rounded {{ request()->routeIs('plazos.*') ? 'bg-warning text-dark' : '' }}">
+        <i class="bi bi-calendar-week me-2"></i>Plazos y calendario
+    </a>
+
 </nav>
 
 <h6 class="text-uppercase text-warning mt-4 mb-3">
@@ -67,7 +72,7 @@
         <i class="bi bi-check2-square me-2"></i>
         Controles de calidad
     </a>
-    <a href="{{ route('hallazgos.index') }}" class="nav-link text-white rounded {{ request()->routeIs('hallazgos.*') ? 'bg-warning text-dark' : '' }}"><i class="bi bi-exclamation-triangle me-2"></i>Hallazgos de calidad</a>
+    <a href="{{ route('hallazgos.index') }}" class="nav-link text-white rounded {{ (request()->routeIs('hallazgos.*') && !request()->routeIs('hallazgos.create')) ? 'bg-warning text-dark' : '' }}"><i class="bi bi-exclamation-triangle me-2"></i>Hallazgos de calidad</a>
     <a href="{{ route('calidad.secciones') }}" class="nav-link text-white rounded {{ request()->routeIs('calidad.secciones*') ? 'bg-warning text-dark' : '' }}"><i class="bi bi-list-ol me-2"></i>Secciones por familia</a>
 </nav>
 
@@ -106,12 +111,7 @@
 
 </nav>
 
-<h6 class="text-uppercase text-warning mt-4 mb-3">Planificación</h6>
-<nav class="nav flex-column gap-2">
-
-    <a href="{{ route('plazos.index') }}" class="nav-link text-white rounded {{ request()->routeIs('plazos.*') ? 'bg-warning text-dark' : '' }}">Plazos y calendario</a>
-</nav>
 <h6 class="text-uppercase text-warning mt-4 mb-3">Mantenimiento</h6>
 <nav class="nav flex-column gap-2">
-<a href="{{ route('mantenimiento.index') }}" class="nav-link text-white rounded {{ request()->routeIs('mantenimiento.*') ? 'bg-warning text-dark' : '' }}"><i class="bi bi-tools me-2"></i>Panel de mantenimiento</a>
+<a href="{{ route('mantenimiento.index') }}" class="nav-link text-white rounded {{ (request()->routeIs('mantenimiento.*') && !request()->routeIs('mantenimiento.ordenes.nueva')) ? 'bg-warning text-dark' : '' }}"><i class="bi bi-tools me-2"></i>Panel de mantenimiento</a>
 </nav>

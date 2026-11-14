@@ -45,6 +45,17 @@
                 {{ $h->fecha_compromiso?->format('d/m/Y') }}</strong>
         </div>
     @endif
+    @if ($h->criterio_eficacia || $h->resultado_eficacia)
+        <div class="card card-body mb-3">
+            <h4>Verificación de eficacia</h4>
+            <p style="white-space:pre-wrap"><strong>Criterio:</strong> {{ $h->criterio_eficacia ?: 'Sin registrar' }}</p>
+            <p><strong>Fecha prevista:</strong> {{ $h->fecha_verificacion_prevista?->format('d/m/Y') ?: 'Sin definir' }}</p>
+            @if ($h->resultado_eficacia)
+                <p style="white-space:pre-wrap"><strong>Resultado:</strong> {{ $h->resultado_eficacia }}</p>
+                <p>Verificó {{ $h->verificador?->name }} · {{ $h->verificado_en?->format('d/m/Y H:i') }}</p>
+            @endif
+        </div>
+    @endif
     @php($esResponsable = (int) auth()->id() === (int) $h->responsable_id)
     @php($esAutor = (int) auth()->id() === (int) $h->autor_id)
     @if (($esResponsable && in_array($h->estado, ['abierto', 'en_accion'])) || ($esAutor && $h->estado === 'por_verificar'))
@@ -60,8 +71,8 @@
                         <option value="terminar" @selected(old('accion_form') === 'terminar')>Acción realizada · enviar a verificación
                         </option>
                     @endif
-                @else<option value="validar">Validar resultado y cerrar</option>
-                    <option value="devolver" @selected(old('accion_form') === 'devolver')>Devolver al responsable</option>
+                @else<option value="validar">Eficacia comprobada · cerrar hallazgo</option>
+                    <option value="devolver" @selected(old('accion_form') === 'devolver')>No eficaz / requiere ajustes · devolver</option>
                 @endif
             </select>
             @if ($esResponsable)
@@ -82,7 +93,20 @@
                     </div>
                 </div>
             @endif
-            <label class="form-label">Comentario / resultado de la acción</label>
+            @if ($esResponsable && $h->estado !== 'por_verificar')
+                <div id="hallazgo-eficacia" class="mb-3">
+                    <label class="form-label">Cómo se comprobará la eficacia *</label>
+                    <textarea name="criterio_eficacia" class="form-control mb-3" maxlength="10000" placeholder="Ej.: inspeccionar las próximas 10 unidades y comprobar que no se repite el defecto.">{{ old('criterio_eficacia', $h->criterio_eficacia) }}</textarea>
+                    <label class="form-label">Fecha prevista de verificación *</label>
+                    <input type="date" name="fecha_verificacion_prevista" class="form-control" min="{{ today()->format('Y-m-d') }}" value="{{ old('fecha_verificacion_prevista', $h->fecha_verificacion_prevista?->format('Y-m-d')) }}">
+                </div>
+            @endif
+            @if ($esAutor && $h->estado === 'por_verificar')
+                <label class="form-label">Evidencia y resultado de la verificación *</label>
+                <textarea name="resultado_eficacia" required maxlength="10000" rows="3" class="form-control mb-3" placeholder="Indicá qué se verificó, los registros consultados y el resultado obtenido.">{{ old('resultado_eficacia') }}</textarea>
+                <p class="text-muted">Cerrá solamente si existe evidencia suficiente de eficacia. Podés adjuntar una foto como respaldo.</p>
+            @endif
+            <label class="form-label">Comentario / trabajo realizado *</label>
             <textarea required name="detalle" rows="3" class="form-control mb-3">{{ old('detalle') }}</textarea><label class="form-label">Foto opcional (JPG, PNG o WEBP, hasta 5 MB)</label><input
                 type="file" name="foto" accept="image/jpeg,image/png,image/webp" class="form-control mb-3"><button
                 class="btn btn-success align-self-start">Guardar seguimiento</button>
@@ -91,10 +115,15 @@
             document.addEventListener('DOMContentLoaded', () => {
                 const s = document.getElementById('hallazgo-accion'),
                     r = document.getElementById('hallazgo-respuesta');
+                const eficacia = document.getElementById('hallazgo-eficacia');
                 if (r) {
                     const actualizar = () => {
                         r.hidden = s.value !== 'responder';
                         r.querySelectorAll('textarea,input').forEach(e => e.disabled = r.hidden);
+                        if (eficacia) {
+                            eficacia.hidden = s.value !== 'terminar';
+                            eficacia.querySelectorAll('textarea,input').forEach(e => { e.disabled = eficacia.hidden; e.required = !eficacia.hidden; });
+                        }
                     };
                     s.addEventListener('change', actualizar);
                     actualizar();

@@ -1,7 +1,7 @@
 @php
 $usuario=auth()->user();
 $pendientesCalidad=\Illuminate\Support\Facades\Schema::hasTable('calidad_hallazgos') ? \Illuminate\Support\Facades\DB::table('calidad_hallazgos')->where('company_id',$usuario->company_id)->where('responsable_id',$usuario->id)->whereNotIn('estado',['cerrado','anulado'])->orderBy('fecha_compromiso')->get() : collect();
-$pendientesMant=\Illuminate\Support\Facades\Schema::hasTable('mantenimiento_ordenes') ? \Illuminate\Support\Facades\DB::table('mantenimiento_ordenes')->where('company_id',$usuario->company_id)->where('responsable_id',$usuario->id)->whereIn('estado',['pendiente','en_proceso'])->orderBy('fecha_compromiso')->get() : collect();
+$pendientesMant=\Illuminate\Support\Facades\Schema::hasTable('mantenimiento_ordenes') ? \Illuminate\Support\Facades\DB::table('mantenimiento_ordenes')->where('company_id',$usuario->company_id)->where('responsable_id',$usuario->id)->where(fn ($b) => $b->whereIn('estado',['pendiente','en_proceso'])->orWhere('estado_liberacion','pendiente'))->orderBy('fecha_compromiso')->get() : collect();
 @endphp
 <div class="d-flex flex-wrap gap-2 mb-3"><a class="btn btn-primary py-2" href="{{ route('hallazgos.create') }}"><i class="bi bi-plus-circle"></i> Hallazgo de calidad</a><a class="btn btn-outline-primary py-2" href="{{ route('mantenimiento.ordenes.nueva') }}"><i class="bi bi-tools"></i> Hallazgo de mantenimiento</a></div>
 <details class="card mb-3"><summary class="card-header fw-bold" style="cursor:pointer">Mis hallazgos sin cerrar · {{ $pendientesCalidad->count()+$pendientesMant->count() }}</summary><div class="list-group list-group-flush">

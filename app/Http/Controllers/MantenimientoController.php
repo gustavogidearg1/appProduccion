@@ -63,7 +63,7 @@ class MantenimientoController extends Controller
             if ($q->filled('situacion')) { $ts=$tareas->where('maquina_id',$m->id); return $q->situacion==='sin_plan' ? $ts->isEmpty() : $ts->contains(fn ($t) => $t->prevision['estado']===$q->situacion); }
             return true;
         });
-        $ordenesAbiertas = DB::table('mantenimiento_ordenes')->where('company_id',$this->empresa($q))->whereIn('estado',['pendiente','en_proceso'])->count();
+        $ordenesAbiertas = DB::table('mantenimiento_ordenes')->where('company_id',$this->empresa($q))->where(fn ($b) => $b->whereIn('estado',['pendiente','en_proceso'])->orWhere('estado_liberacion','pendiente'))->count();
         return view('mantenimiento.index', compact('editar','tareas','maquinas','estadisticas','etiquetas','ordenesAbiertas'));
     }
     public function maquinaForm(Request $q) { $this->escritura($q); $m=null; return view('mantenimiento.maquina-form',compact('m')); }
@@ -128,6 +128,7 @@ class MantenimientoController extends Controller
     public function ordenes(Request $q)
     {
         $this->empresa($q); $base=DB::table('mantenimiento_ordenes')->where('company_id',$this->empresa($q));
+        $porLiberar=(clone $base)->where('estado_liberacion','pendiente')->count();
         $conteos=(clone $base)->select('estado',DB::raw('COUNT(*) as total'))->groupBy('estado')->pluck('total','estado');
         $abiertas=(clone $base)->whereIn('estado',['pendiente','en_proceso']);
         $prioridades=(clone $abiertas)->select('prioridad',DB::raw('COUNT(*) as total'))->groupBy('prioridad')->pluck('total','prioridad');
@@ -139,8 +140,8 @@ class MantenimientoController extends Controller
                 'creadas'=>(clone $base)->where('created_at','>=',$mes)->where('created_at','<',$fin)->count(),
                 'finalizadas'=>(clone $base)->where('estado','finalizada')->where('fecha_fin','>=',$mes->toDateString())->where('fecha_fin','<',$fin->toDateString())->count()];
         }
-        $ordenes=$base->when($q->filled('estado'),fn ($b) => $b->when($q->estado !== 'todas',fn ($b) => $b->where('estado',$q->estado)),fn ($b) => $b->whereIn('estado',['pendiente','en_proceso']))->when($q->filled('buscar'),fn ($b) => $b->where(function ($b) use ($q) { $b->where('titulo','like','%'.$q->buscar.'%')->orWhere('id',$q->buscar); }))->orderByDesc('id')->paginate(25)->withQueryString();
-        return view('mantenimiento.ordenes',compact('ordenes','conteos','prioridades','vencidas','evolucion'));
+        $ordenes=$base->when($q->filled('estado'),fn ($b) => $b->when($q->estado !== 'todas',fn ($b) => $b->where('estado',$q->estado)),fn ($b) => $b->where(fn ($b) => $b->whereIn('estado',['pendiente','en_proceso'])->orWhere('estado_liberacion','pendiente')))->when($q->filled('buscar'),fn ($b) => $b->where(function ($b) use ($q) { $b->where('titulo','like','%'.$q->buscar.'%')->orWhere('id',$q->buscar); }))->orderByDesc('id')->paginate(25)->withQueryString();
+        return view('mantenimiento.ordenes',compact('ordenes','conteos','prioridades','vencidas','evolucion','porLiberar'));
     }
     public function ordenForm(Request $q)
     {
@@ -181,7 +182,7 @@ class MantenimientoController extends Controller
         $orden=$this->buscarOrden($q,$id); $gestionar=$this->puedeEditar($q);
         abort_unless($gestionar || ((int)$orden->responsable_id===(int)$q->user()->id && in_array($q->accion,['nota','iniciar','finalizar'])),403);
         $this->validarFotos($q);
-        $d=$q->validate(['accion'=>['required',Rule::in(['editar','planificar','iniciar','finalizar','anular','reabrir','nota'])],'detalle'=>'required|string|min:3|max:10000','fecha'=>'required|date_format:Y-m-d|before_or_equal:today','repuestos'=>'nullable|string|max:10000','horas'=>'nullable|numeric|min:0|max:999999.99','fecha_compromiso'=>'nullable|date_format:Y-m-d','responsable_id'=>'nullable|integer']);
+        $d=$q->validate(['accion'=>['required',Rule::in(['editar','planificar','iniciar','finalizar','anular','reabrir','nota','liberar','rechazar'])],'detalle'=>'required|string|min:3|max:10000','fecha'=>'required|date_format:Y-m-d|before_or_equal:today','repuestos'=>'nullable|string|max:10000','horas'=>'nullable|numeric|min:0|max:999999.99','fecha_compromiso'=>'nullable|date_format:Y-m-d','responsable_id'=>'nullable|integer','prueba_funcionamiento'=>'required_if:accion,liberar,rechazar|nullable|string|max:10000']);
         DB::transaction(function () use ($q,$id,$d) {
             $o=$this->buscarOrden($q,$id,true); $this->version($q,$o); $a=$d['accion']; $c=[];
             if ($a==='editar') {
@@ -192,11 +193,17 @@ class MantenimientoController extends Controller
             }
             if ($a==='planificar') { if (!in_array($o->estado,['pendiente','en_proceso'])) throw ValidationException::withMessages(['accion'=>'Reabrí la orden antes de planificarla.']); $u=$this->responsable($q); $c=['responsable_id'=>$u?->id,'responsable_nombre'=>$u?->name,'fecha_compromiso'=>$d['fecha_compromiso']??null]; }
             if ($a==='iniciar') { if ($o->estado!=='pendiente') throw ValidationException::withMessages(['accion'=>'Solo se inicia una orden pendiente.']); $c=['estado'=>'en_proceso','fecha_inicio'=>$d['fecha']]; }
-            if ($a==='finalizar') { if ($o->estado!=='en_proceso' || $d['fecha'] < $o->fecha_inicio) throw ValidationException::withMessages(['fecha'=>'Iniciá la orden primero. El cierre debe ser igual o posterior al inicio.']); $c=['estado'=>'finalizada','fecha_fin'=>$d['fecha']]; }
+            if ($a==='finalizar') { if ($o->estado!=='en_proceso' || $d['fecha'] < $o->fecha_inicio) throw ValidationException::withMessages(['fecha'=>'Iniciá la orden primero. El cierre debe ser igual o posterior al inicio.']); $c=['estado'=>'finalizada','fecha_fin'=>$d['fecha'],'estado_liberacion'=>'pendiente','prueba_funcionamiento'=>null,'liberado_en'=>null,'liberado_por'=>null,'liberado_nombre'=>null]; }
+            if (in_array($a,['liberar','rechazar'],true)) {
+                if ($o->estado!=='finalizada' || $o->estado_liberacion!=='pendiente') throw ValidationException::withMessages(['accion'=>'Se requiere un trabajo finalizado pendiente de liberación.']);
+                if ($d['fecha'] < $o->fecha_fin) throw ValidationException::withMessages(['fecha'=>'La prueba no puede ser anterior al fin del trabajo.']);
+                $c=['estado_liberacion'=>$a==='liberar' ? 'liberada' : 'rechazada','prueba_funcionamiento'=>$d['prueba_funcionamiento'],'liberado_en'=>$d['fecha'],'liberado_por'=>$q->user()->id,'liberado_nombre'=>$q->user()->name];
+                if ($a==='rechazar') $c+=['estado'=>'en_proceso','fecha_fin'=>null];
+            }
             if ($a==='anular') { if (!in_array($o->estado,['pendiente','en_proceso'])) throw ValidationException::withMessages(['accion'=>'Solo se anulan órdenes abiertas.']); $c=['estado'=>'anulada']; }
-            if ($a==='reabrir') { if (!in_array($o->estado,['finalizada','anulada'])) throw ValidationException::withMessages(['accion'=>'La orden ya está abierta.']); $c=['estado'=>'pendiente','fecha_inicio'=>null,'fecha_fin'=>null]; }
+            if ($a==='reabrir') { if (!in_array($o->estado,['finalizada','anulada'])) throw ValidationException::withMessages(['accion'=>'La orden ya está abierta.']); $c=['estado'=>'pendiente','fecha_inicio'=>null,'fecha_fin'=>null,'estado_liberacion'=>null,'prueba_funcionamiento'=>null,'liberado_en'=>null,'liberado_por'=>null,'liberado_nombre'=>null]; }
             DB::table('mantenimiento_ordenes')->where('id',$id)->update($c+['version'=>$o->version+1,'updated_at'=>now()]);
-            $this->movimiento($q,$id,$a,$d['detalle'],$d['fecha'],['repuestos'=>$d['repuestos']??null,'horas'=>$d['horas']??null]);
+            $this->movimiento($q,$id,$a,$d['detalle'].(in_array($a,['liberar','rechazar'],true) ? "\nPrueba y resultado: {$d['prueba_funcionamiento']}" : ''),$d['fecha'],['repuestos'=>$d['repuestos']??null,'horas'=>$d['horas']??null]);
         });
         $this->guardarFotos($q,$id,$q->accion==='finalizar' ? 'final' : 'inicio');
         $respuesta=back()->with('success','Seguimiento guardado.');

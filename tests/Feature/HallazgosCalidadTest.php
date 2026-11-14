@@ -16,12 +16,14 @@ class HallazgosCalidadTest extends TestCase
     {
         parent::setUp();
         Mail::fake();
+        config(['hallazgos.copias' => ['industrial@comofrasrl.com.ar', 'gustavog@live.com.ar']]);
         config(['database.default' => 'sqlite', 'database.connections.sqlite' => ['driver'=>'sqlite','database'=>':memory:','foreign_key_constraints'=>true], 'database.connections.club_comofra' => ['driver'=>'sqlite','database'=>':memory:','foreign_key_constraints'=>true]]);
         DB::purge('sqlite'); DB::purge('club_comofra');
         Schema::create('planes_produccion', fn (Blueprint $t) => $t->id());
         Schema::create('unidades_produccion', fn (Blueprint $t) => $t->id());
         Schema::connection('club_comofra')->create('users', function (Blueprint $t) { $t->id(); $t->string('name'); $t->string('email'); $t->boolean('activo'); $t->unsignedBigInteger('company_id'); });
         (require base_path('database/migrations/2026_11_11_120000_create_calidad_hallazgos.php'))->up();
+        (require base_path('database/migrations/2026_11_14_120000_add_eficacia_to_calidad_hallazgos.php'))->up();
         foreach ([1,2,3] as $id) DB::connection('club_comofra')->table('users')->insert(['id'=>$id,'name'=>'Usuario '.$id,'email'=>"u$id@example.test",'activo'=>true,'company_id'=>$id===3 ? 2 : 1]);
         Storage::fake('local');
     }
@@ -58,6 +60,11 @@ class HallazgosCalidadTest extends TestCase
     }
     private function seguimiento(HallazgoCalidad $h, string $accion, array $extra=[])
     {
+        $extra += match ($accion) {
+            'terminar' => ['criterio_eficacia' => 'Inspeccionar próximas diez unidades', 'fecha_verificacion_prevista' => today()->addDays(7)->format('Y-m-d')],
+            'validar', 'devolver' => ['resultado_eficacia' => 'Diez unidades inspeccionadas, resultado registrado'],
+            default => [],
+        };
         return $this->post(route('hallazgos.actualizar',$h), ['accion_form'=>$accion,'version'=>$h->historial()->max('id'),'detalle'=>'Resultado documentado']+$extra);
     }
     public function test_circuito_y_permisos_conservan_historial(): void
@@ -82,11 +89,27 @@ class HallazgosCalidadTest extends TestCase
         $this->get(route('hallazgos.index'))->assertOk()->assertDontSee('Soldadura incompleta');
         $this->get(route('hallazgos.index',['estado'=>'todos']))->assertOk()->assertSee('Soldadura incompleta');
     }
+    public function test_exige_plan_y_evidencia_de_eficacia(): void
+    {
+        $h = $this->registrar();
+        $this->actingAs($this->usuario(2));
+        $this->seguimiento($h, 'responder', ['causa'=>'Causa', 'accion'=>'Acción', 'fecha_compromiso'=>today()->addDay()->format('Y-m-d')])->assertRedirect();
+        $this->seguimiento($h, 'terminar', ['criterio_eficacia'=>'', 'fecha_verificacion_prevista'=>''])->assertSessionHasErrors(['criterio_eficacia', 'fecha_verificacion_prevista']);
+        $this->assertSame('en_accion', $h->fresh()->estado);
+        $this->seguimiento($h, 'terminar')->assertRedirect();
+        $this->actingAs($this->usuario(1));
+        $this->seguimiento($h, 'validar', ['resultado_eficacia'=>''])->assertSessionHasErrors('resultado_eficacia');
+        $this->assertSame('por_verificar', $h->fresh()->estado);
+        $this->seguimiento($h, 'validar')->assertRedirect();
+        $this->assertSame(1, (int) $h->fresh()->verificado_por);
+        $this->assertNotNull($h->fresh()->verificado_en);
+        $this->assertStringContainsString('Resultado de eficacia', $h->historial()->reorder('id', 'desc')->first()->detalle);
+    }
     public function test_aislamiento_empresa_y_version_desactualizada(): void
     {
         $h=$this->registrar();
         $this->actingAs($this->usuario(3))->get(route('hallazgos.show',$h))->assertNotFound();
-        $this->actingAs($this->usuario(2))->post(route('hallazgos.actualizar',$h),['accion_form'=>'terminar','version'=>0,'detalle'=>'Prueba'])->assertStatus(409);
+        $this->actingAs($this->usuario(2))->post(route('hallazgos.actualizar',$h),['accion_form'=>'terminar','version'=>0,'detalle'=>'Prueba','criterio_eficacia'=>'Inspección','fecha_verificacion_prevista'=>today()->addDay()->format('Y-m-d')])->assertStatus(409);
         $this->assertSame('abierto',$h->fresh()->estado);
     }
     public function test_anulacion_requiere_autor_y_motivo_y_conserva_historial(): void
@@ -103,6 +126,19 @@ class HallazgosCalidadTest extends TestCase
         $this->get(route('hallazgos.index',['estado'=>'anulado']))->assertOk()->assertSee('Soldadura incompleta');
         $this->get(route('hallazgos.show',$h))->assertOk()->assertDontSee('Confirmar anulación');
         $this->seguimiento($h,'anular')->assertStatus(409);
+    }
+    public function test_graficos_respetan_filtros_empresa_y_cierres(): void
+    {
+        $h=$this->registrar();
+        $h->update(['created_at'=>today()->startOfMonth(), 'estado'=>'cerrado', 'verificado_en'=>now()]);
+        $otro=$h->replicate();$otro->numero=99;$otro->company_id=2;$otro->save();
+        $this->get(route('hallazgos.index',['estado'=>'todos']))->assertOk()->assertViewHas('resumen',fn($r)=>$r['total']===1 && $r['abiertos']===0)
+            ->assertViewHas('evolucion',fn($e)=>$e[5]['creados']===1 && $e[5]['cerrados']===1)->assertSee('Hallazgos por responsable');
+        $this->get(route('hallazgos.index'))->assertOk()->assertViewHas('resumen',fn($r)=>$r['total']===0);
+        $this->get(route('hallazgos.index',['estado'=>'todos','responsable'=>1]))->assertOk()->assertViewHas('resumen',fn($r)=>$r['total']===0);
+        $this->get(route('hallazgos.index',['estado'=>'todos','hasta'=>today()->toDateString()]))->assertOk();
+        $this->get(route('hallazgos.index',['desde'=>today()->addDay()->toDateString(),'hasta'=>today()->toDateString()]))->assertSessionHasErrors('hasta');
+        $this->get(route('hallazgos.index',['estado'=>'todos','desde'=>today()->addDay()->toDateString()]))->assertOk()->assertViewHas('resumen',fn($r)=>$r['total']===0);
     }
     public function test_foto_privada_y_formulario(): void
     {

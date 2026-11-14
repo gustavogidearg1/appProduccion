@@ -26,5 +26,5 @@ $maxPrioridad=max(1,$prioridades->max() ?? 0);
 <div class="small mt-2">{{ $fila['mes'] }} · Creados: <strong>{{ $fila['creadas'] }}</strong> · Finalizados: <strong>{{ $fila['finalizadas'] }}</strong></div>
 <div class="progress mb-1" style="height:7px"><div class="progress-bar bg-primary" style="width:{{ $fila['creadas']*100/$maxMes }}%"></div></div><div class="progress" style="height:7px"><div class="progress-bar bg-success" style="width:{{ $fila['finalizadas']*100/$maxMes }}%"></div></div>
 @endforeach
-<small class="text-muted d-block mt-2">Creados según fecha de carga; finalizados según fecha real de cierre. No necesariamente corresponden a los mismos hallazgos.</small></div></div>
+<small class="text-muted d-block mt-2">Creados según fecha de carga; finalizados según fecha de terminación del trabajo. Finalizar no equivale a liberar: consultá el contador de pendientes de prueba. No necesariamente corresponden a los mismos hallazgos.</small></div></div>
 </div></div></details>

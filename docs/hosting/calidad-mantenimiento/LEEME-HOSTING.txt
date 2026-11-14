@@ -1,0 +1,29 @@
+PAQUETE CONJUNTO: EFICACIA DE CALIDAD, LIBERACIÓN DE MANTENIMIENTO Y GRÁFICOS
+
+LOCALHOST
+Cambios y ambas migraciones aplicados. 15 pruebas, 146 comprobaciones.
+
+HOSTING SIN TERMINAL
+1. Hacer copia de seguridad de la base de Producción y de los archivos que se reemplazan.
+2. En phpMyAdmin seleccionar la base PROPIA de Producción, nunca Club ni Cotizador.
+3. Ejecutar 01-eficacia-calidad.sql SOLO si no se ejecutó ya el SQL del paquete anterior. Verificar que NO existan criterio_eficacia, fecha_verificacion_prevista, resultado_eficacia, verificado_en y verificado_por en calidad_hallazgos. Si ya existen todos, omitir este archivo; si existen parcialmente, detenerse y revisar antes de continuar.
+4. Ejecutar 02-liberacion-mantenimiento.sql UNA SOLA VEZ si no existen los nuevos campos en mantenimiento_ordenes.
+5. Subir el contenido de app/ y resources/ conservando exactamente las rutas y reemplazando los archivos. Incluye el cambio anterior de eficacia; no hace falta instalar el ZIP anterior además de este.
+6. Las dos migraciones de database/ se incluyen como fuente y referencia. No ejecutarlas además del SQL: son dos alternativas para crear los mismos campos. Si se incorpora terminal en el futuro, reconciliar primero el registro de migraciones.
+7. tests/ es para el repositorio local; no hace falta subirlo al hosting.
+8. Si aparece una vista anterior, eliminar únicamente las vistas PHP compiladas dentro de storage/framework/views, conservando .gitignore y la carpeta. No borrar otras carpetas de storage.
+9. No cambia .env ni requiere compilar recursos frontend ni instalar dependencias.
+
+PRUEBA MANUAL
+CALIDAD: cargar prueba, responder, informar trabajo realizado con criterio y fecha prevista de eficacia; ingresar como autor y registrar resultado para cerrar o devolver.
+GRÁFICOS: abrir Hallazgos de calidad, elegir Mostrar todos, filtrar responsable y período. Gráficos y listado respetan todos los filtros, incluida la fecha de carga. Evolución: seis meses terminando en el mes indicado por Hasta o el actual. Cierres históricos sin fecha de verificación no se contabilizan por mes; sí cuentan por estado. No se interpreta cantidad asignada como desempeño individual.
+MANTENIMIENTO: iniciar una orden y terminar el trabajo. Debe quedar pendiente de liberación y seguir apareciendo en abiertas. Mantenimiento o administrador registra prueba y resultado para liberar o rechazar. Rechazar devuelve a reparación. El responsable asignado puede terminar su trabajo, pero no obtiene permiso de liberación por esa asignación.
+
+ALCANCE
+- Se conservan registros anteriores y sus fechas; no se inventan pruebas para reparaciones históricas.
+- Liberar registra la conformidad del trabajo; no modifica automáticamente el estado de la máquina ni bloquea producción. Su disponibilidad se administra en la ficha del equipo.
+- Se conserva en movimientos cada prueba aprobada o rechazada con fecha y autor, incluso al reabrir.
+- Fotos de reparación continúan disponibles. La prueba puede detallar mediciones y referencias documentales; no se agregó carga de PDF.
+- La liberación se aplica a hallazgos/órdenes correctivas. Los registros de intervenciones preventivas mantienen su circuito actual.
+- Gráficos de mantenimiento de finalizadas indican trabajo terminado, no necesariamente equipo liberado. Hay un contador separado de pendientes de liberación.
+- No se enviaron correos reales durante las pruebas.

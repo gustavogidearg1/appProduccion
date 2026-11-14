@@ -20,6 +20,8 @@ class HallazgoCalidadController extends Controller
     public function index(Request $q)
     {
         $q->validate(['estado' => ['nullable', Rule::in(['pendientes', 'todos', ...array_keys(H::ESTADOS)])], 'buscar' => 'nullable|string|max:200']);
+        $q->validate(['responsable'=>'nullable|integer|min:1','desde'=>'nullable|date_format:Y-m-d','hasta'=>'nullable|date_format:Y-m-d|after_or_equal:desde']);
+        $usuarios = User::where('company_id', $q->user()->company_id)->orderBy('name')->get(['id','name']);
         $consulta = $this->consulta($q)->with(['responsable', 'plan', 'unidad']);
         $estado = $q->input('estado', 'pendientes');
         if ($estado === 'pendientes') $consulta->whereNotIn('estado', ['cerrado', 'anulado']);
@@ -35,8 +37,23 @@ class HallazgoCalidadController extends Controller
         }
         if ($q->boolean('mios')) $consulta->where('responsable_id', $q->user()->id);
         if ($q->boolean('vencidos')) $consulta->whereIn('estado', ['abierto', 'en_accion'])->whereDate('fecha_compromiso', '<', today());
+        if ($q->filled('responsable')) $consulta->where('responsable_id', $q->integer('responsable'));
+        if ($q->filled('desde')) $consulta->whereDate('created_at','>=',$q->input('desde'));
+        if ($q->filled('hasta')) $consulta->whereDate('created_at','<=',$q->input('hasta'));
+        $porEstado = (clone $consulta)->reorder()->select('estado', DB::raw('COUNT(*) as total'))->groupBy('estado')->pluck('total','estado');
+        $porResponsable = (clone $consulta)->reorder()->select('responsable_id', DB::raw('COUNT(*) as total'))->groupBy('responsable_id')->orderByDesc('total')->get();
+        $resumen = ['total'=>$porEstado->sum(), 'abiertos'=>(clone $consulta)->whereNotIn('estado',['cerrado','anulado'])->count(),
+            'vencidos'=>(clone $consulta)->whereIn('estado',['abierto','en_accion'])->whereDate('fecha_compromiso','<',today())->count(),
+            'verificacion_vencida'=>(clone $consulta)->where('estado','por_verificar')->whereDate('fecha_verificacion_prevista','<',today())->count()];
+        $evolucion = [];
+        $finGrafico = $q->filled('hasta') ? \Carbon\Carbon::parse($q->input('hasta'))->startOfMonth() : today()->startOfMonth();
+        for ($i=5; $i>=0; $i--) {
+            $mes=$finGrafico->copy()->subMonths($i); $fin=$mes->copy()->addMonth();
+            $evolucion[]=['mes'=>$mes->format('m/Y'), 'creados'=>(clone $consulta)->where('created_at','>=',$mes)->where('created_at','<',$fin)->count(),
+                'cerrados'=>(clone $consulta)->where('estado','cerrado')->where('verificado_en','>=',$mes)->where('verificado_en','<',$fin)->count()];
+        }
         $hallazgos = $consulta->latest('id')->paginate(25)->withQueryString();
-        return view('calidad.hallazgos.index', compact('hallazgos', 'estado'));
+        return view('calidad.hallazgos.index', compact('hallazgos', 'estado', 'usuarios', 'porEstado', 'porResponsable', 'resumen', 'evolucion'));
     }
 
     public function create(Request $q)
@@ -117,6 +134,9 @@ class HallazgoCalidadController extends Controller
             'accion' => 'required_if:accion_form,responder|nullable|string|max:10000',
             'fecha_compromiso' => 'required_if:accion_form,responder|nullable|date_format:Y-m-d|after_or_equal:today',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'criterio_eficacia' => 'required_if:accion_form,terminar|nullable|string|max:10000',
+            'fecha_verificacion_prevista' => 'required_if:accion_form,terminar|nullable|date_format:Y-m-d|after_or_equal:today',
+            'resultado_eficacia' => 'required_if:accion_form,validar,devolver|nullable|string|max:10000',
         ]);
         $foto = null;
         try {
@@ -130,10 +150,24 @@ class HallazgoCalidadController extends Controller
                 abort_unless(in_array($h->estado, $permitidos[$accion], true), 409, 'La acción no corresponde al estado actual.');
                 $anterior = $h->estado;
                 if ($accion === 'responder') $h->fill(collect($d)->only(['causa', 'contencion', 'accion', 'fecha_compromiso'])->all());
+                if ($accion === 'terminar') {
+                    $h->criterio_eficacia = $d['criterio_eficacia'];
+                    $h->fecha_verificacion_prevista = $d['fecha_verificacion_prevista'];
+                    $h->resultado_eficacia = null;
+                    $h->verificado_en = null;
+                    $h->verificado_por = null;
+                }
+                if (in_array($accion, ['validar', 'devolver'], true)) {
+                    $h->resultado_eficacia = $d['resultado_eficacia'];
+                    $h->verificado_en = now();
+                    $h->verificado_por = $q->user()->id;
+                }
                 $h->estado = ['responder' => 'en_accion', 'terminar' => 'por_verificar', 'validar' => 'cerrado', 'devolver' => 'en_accion', 'anular' => 'anulado'][$accion];
                 $h->save();
                 $foto = $q->file('foto')?->store('hallazgos', 'local');
                 $detalle = $d['detalle'];
+                if ($accion === 'terminar') $detalle .= "\nCriterio de eficacia: {$d['criterio_eficacia']}\nVerificación prevista: {$d['fecha_verificacion_prevista']}";
+                if (in_array($accion, ['validar', 'devolver'], true)) $detalle .= "\nResultado de eficacia: {$d['resultado_eficacia']}\nEvaluación: ".($accion === 'validar' ? 'Eficaz' : 'No eficaz / requiere ajustes');
                 if ($accion === 'responder') $detalle .= "\nCausa: {$d['causa']}\nContención: ".($d['contencion'] ?? '')."\nAcción: {$d['accion']}\nCompromiso: {$d['fecha_compromiso']}";
                 $h->historial()->create(['usuario_id' => $q->user()->id, 'accion' => $accion, 'estado_anterior' => $anterior, 'estado_nuevo' => $h->estado, 'detalle' => $detalle, 'foto' => $foto]);
             });

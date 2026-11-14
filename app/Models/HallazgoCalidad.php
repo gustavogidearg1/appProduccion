@@ -8,12 +8,13 @@ class HallazgoCalidad extends Model
 {
     protected $table = 'calidad_hallazgos';
     protected $guarded = ['id'];
-    protected $casts = ['fecha_compromiso' => 'date'];
+    protected $casts = ['fecha_compromiso' => 'date', 'fecha_verificacion_prevista' => 'date', 'verificado_en' => 'datetime'];
 
     public const TIPOS = ['NC' => 'No conformidad', 'OBS' => 'Observación', 'OM' => 'Oportunidad de mejora'];
     public const ESTADOS = ['abierto' => 'Pendiente de respuesta', 'en_accion' => 'En acción', 'por_verificar' => 'Pendiente de verificación', 'cerrado' => 'Cerrado', 'anulado' => 'Anulado'];
     public const ORIGENES = ['Producción interna', 'Posventa', 'Auditoría interna', 'Auditoría externa', 'Modificación de producto'];
 
+    public function verificador() { return $this->belongsTo(User::class, 'verificado_por'); }
     public function responsable() { return $this->belongsTo(User::class, 'responsable_id'); }
     public function autor() { return $this->belongsTo(User::class, 'autor_id'); }
     public function plan() { return $this->belongsTo(PlanProduccion::class, 'plan_produccion_id'); }
